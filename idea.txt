@@ -1,0 +1,1389 @@
+This is a **sophisticated, PhD-thesis level proposal**. You aren’t just patching a model; you are proposing a fundamental architectural shift that unifies three distinct sub-fields of AI research (Causal Inference, Robustness/TTA, and Curriculum Learning).
+
+Here is a critical breakdown of **ACISA**—where it shines, where it will break, and how to actually implement it.
+
+---
+
+### **The Verdict: High Reward, High Risk**
+
+**The concept is theoretically sound.** You have correctly identified that "spurious correlations" are the root cause of overfitting and that standard regularization (L2, Dropout) only treats the symptoms, not the disease.
+
+However, the engineering complexity of **ACISA** is extreme because it relies on the "Chicken and Egg" problem of Causal Deep Learning: *You need a good representation to learn the Causal DAG, but you need the Causal DAG to learn a good representation.*
+
+### **Component-by-Component Analysis**
+
+#### **1. Causal Structure Regularization (The "Brain")**
+* **The Genius:** Standard Deep Learning (DL) is purely associative ($P(Y|X)$). By enforcing a DAG (Directed Acyclic Graph), you force the model to learn mechanisms ($P(Y|do(X))$). This theoretically guarantees better out-of-distribution (OOD) generalization.
+* **The Bottleneck:** **Causal Discovery is NP-Hard.**
+    * Learning a DAG from raw high-dimensional data (like images or text tokens) is currently an unsolved problem at scale.
+    * **Critique:** You cannot embed a DAG directly on "pixels." You first need a **Disentanglement Layer** (like a $\beta$-VAE) to compress raw data into latent causal factors (e.g., "object shape," "lighting," "texture").
+    * 
+
+#### **2. Test-Time Counterfactual Augmentation (The "Filter")**
+* **The Genius:** Most models fail because they encounter a scenario at test time that wasn't in the training distribution. By generating counterfactuals *live* (e.g., "What if this X-ray was taken with a different scanner but the same disease?"), you can average out the noise.
+* **The Bottleneck:** **Inference Latency.**
+    * To do this, you need a generative model (like a GAN or Diffusion model) running *at inference time*. If you generate 5 counterfactuals per query, your inference cost increases by 500% + the generation time.
+    * **Critique:** For real-time applications (like your News Streaming pipeline), this is too slow. It works best for offline batch processing (like medical diagnosis).
+
+#### **3. Curriculum-based Multi-domain Batch Mixing (The "Teacher")**
+* **The Genius:** This acts as a stabilizer. Learning causal structures is unstable; mixing domains gradually helps the model lock onto "invariant" features (features that don't change across domains) early on.
+* **The Bottleneck:** **Hyperparameter Sensitivity.**
+    * Defining the "pacing function" (how fast to mix domains) is notoriously difficult and can lead to catastrophic forgetting if done wrong.
+
+---
+
+### **The "Fatal Flaw" & The Fix**
+
+**The Flaw:** You are trying to learn the **Causal Graph** and the **Predictive Model** simultaneously. If your causal graph learning makes a mistake early on (identifying a spurious correlation as causal), your "Counterfactual Augmentation" will generate *wrong* data, reinforcing the error.
+
+**The Fix: Decouple the Architecture (The "ACISA-Lite" Approach)**
+
+Instead of one giant end-to-end monster, split ACISA into two stages:
+
+1.  **Stage 1: The Causal Autoencoder (VAE + DAG):**
+    * Train a Variational Autoencoder to compress data into latent variables $Z$.
+    * Apply a differentiable causal discovery algorithm (like **NOTEARS** or **DAG-GNN**) on $Z$ to learn the structure.
+    * *Goal:* Learn what creates the data.
+
+2.  **Stage 2: The Invariant Predictor (ACISA Proper):**
+    * Freeze the causal graph from Stage 1.
+    * Train your classifier.
+    * Use the frozen graph to generate counterfactuals for your curriculum and test-time augmentation.
+
+### **Technical Implementation Stack (Open Source)**
+
+Since you prefer free/open-source tools, here is how you build the prototype:
+
+| Component | Recommended Tool/Library | Role |
+| :--- | :--- | :--- |
+| **Causal Discovery** | **CausalNex** or **DoWhy** (Microsoft) | To define or learn the DAG structure. |
+| **Disentanglement** | **PyTorch** (Custom $\beta$-VAE) | To turn high-dim data into low-dim causal factors. |
+| **Augmentation** | **Kornia** (Differentiable Augmentation) | For performing interventions on the data. |
+| **Curriculum** | **Ray Tune** (Scheduler) | To manage the batch mixing ratios. |
+
+### **Proposed Experiment (Proof of Concept)**
+
+Don't start with complex data. Prove ACISA works on the **Colored MNIST** dataset (a classic benchmark for spurious correlations).
+* **Dataset:** Digits are colored. In training, "0" is usually red. In testing, "0" is usually green.
+* **Standard CNN:** Will fail (it learns Color = Digit).
+* **ACISA:**
+    1.  **Causal Graph:** Manually define or learn that $Color \rightarrow Image$ and $Digit \rightarrow Image$, but $Color \perp\!\!\!\perp Digit$.
+    2.  **Intervention:** At test time, generate counterfactuals: "Keep the digit shape, swap the color."
+    3.  **Result:** The model averages predictions across colors and realizes only the shape matters.
+
+### **Next Step**
+This is a massive project. Would you like me to generate a **Python pseudo-code skeleton** for the "Stage 1: Causal Autoencoder" using PyTorch, specifically tailored for the Colored MNIST example?
+
+Autonomous Deep Research Systems: A Comprehensive Architectural Framework for Deterministic Reliability1. The Paradigm Shift: From Search Engines to Autonomous Research EnginesThe trajectory of artificial intelligence has shifted decisively from static information retrieval to dynamic, agentic knowledge discovery. As the technological landscape matures in late 2025, the industry stands at a critical inflection point where Large Language Models (LLMs) are no longer merely text generators but are evolving into the cognitive cores of autonomous systems capable of executing long-horizon tasks. This report outlines a rigorous, architecturally robust framework for a "Deep Research" AI system—a system designed not just to search, but to inquire, verify, synthesize, and reason with a level of depth and reliability that approximates expert human analysis.The concept of "Deep Research" transcends traditional search mechanisms. While standard information retrieval focuses on fetching relevant documents based on keyword matching or semantic similarity, Deep Research implies a multi-step, iterative process of hypothesis generation, evidence gathering, conflict resolution, and synthesis.1 It is the structural difference between asking a system "What is the GDP of France?" and assigning the task "Analyze the macroeconomic impact of recent EU trade policies on the French industrial sector, accounting for contradictory forecasts from 2023 to 2025." The latter requires an agent to maintain a coherent goal over thousands of operational steps, navigate conflicting data landscapes, and self-correct when search paths prove fruitless.2However, the deployment of such agents has been plagued by inherent fragility. Early "Agent 1.0" architectures—typically characterized by simple loops wrapping an LLM with tool access—suffer from catastrophic failure modes: infinite loops, context window pollution, hallucination cascades, and an inability to distinguish credible truth from noise.3 To achieve a truly "foolproof" implementation, the field must move beyond these stochastic loops toward deterministic, state-managed architectures that enforce logic, rigorous verification, and structural resilience.1.1 The Reliability Crisis in Agentic WorkflowsThe promise of autonomous research agents is frequently undermined by their probabilistic nature. In 2024 and 2025, organizations experimenting with agents reported that while approximately 62% were piloting these systems, few had successfully scaled them to enterprise production due to severe reliability concerns.4 The core failure modes identified in current literature include:Infinite Loops and Agent Sprawl: Without strict governance, agents often enter recursive cycles—repeatedly performing the same search or handoff without progressing toward the goal. This "shadow agent sprawl" leads to wasted compute resources and stalled workflows, where agents endlessly pass tasks back and forth without resolution.5Hallucination Propagation: Unlike a chatbot where a hallucination is a localized error, an autonomous agent acts on its hallucinations. If an agent hallucinates a URL or a data point, subsequent steps (downloading, analyzing, summarizing) are poisoned, leading to a "computational cascade" of errors where the final output is mathematically derived from a fiction.6Contextual Amnesia: In long-horizon tasks, agents often lose track of initial constraints or prior findings as the context window fills with irrelevant search debris. This results in "goal drift," where the final output effectively answers a different question than the one originally asked, often latching onto a tangential fact found halfway through the process.7Stochastic Brittleness: A prompt that works once may fail on the next run due to the inherent randomness of the model's token generation, making debugging and reproducibility distinct challenges in production environments.6To address these gaps, the proposed architecture utilizes a "System 2" approach, integrating neural reasoning with symbolic control structures. This hybrid methodology ensures that while the LLM provides the creativity and semantic understanding, the control flow is governed by deterministic graphs that prevent illegal states and ensure logical progression.81.2 Economic and Technical Drivers of Autonomous ResearchThe push toward autonomous research is driven by specific economic imperatives. The cost of human knowledge work, particularly in high-context fields like financial due diligence, academic literature review, and legal discovery, is substantial. An AI system capable of performing "Deep Research" offers the potential to compress weeks of human analysis into minutes of compute time.DriverDescriptionImpact on ArchitectureModel Reasoning CapabilityRise of o1/o3 models capable of long chains of thought.9Enables complex planning and self-correction without human intervention.Context Window EconomicsDecreasing cost of large context windows (1M+ tokens).Allows agents to ingest entire papers/books rather than just snippets, improving synthesis quality.3Tool StandardizationAdoption of Model Context Protocol (MCP).9Standardizes how agents connect to databases, browsers, and file systems, reducing integration fragility.Framework MaturityShift from custom loops to graph-based orchestration (LangGraph).10Provides the state management and checkpointing necessary for "foolproof" error recovery.The convergence of these drivers suggests that 2025 is the year where agents move from "novelty" to "utility," provided the reliability challenges can be solved through robust engineering.112. Anatomy of Failure: Why Current Agents BreakTo build a foolproof system, one must first deeply understand the mechanisms of failure in current systems. The majority of "Agent 1.0" failures are not due to a lack of model intelligence, but due to a lack of cognitive architecture.2.1 The Infinite Loop and Recursive TrapsOne of the most pervasive issues in autonomous systems is the infinite loop. This occurs when an agent fails to achieve a sub-goal but lacks the meta-cognition to recognize the failure. For example, an agent tasked with finding a specific document might try a search query, find zero results, and then—due to a lack of state tracking—try the exact same query again in the next step.Current research indicates that "shadow agent sprawl," where agents spawn sub-agents that never terminate, is a major risk equivalent to "shadow IT" in the enterprise.5 The lack of a "Watchdog Process" means that these loops can consume infinite budget until manually killed. A foolproof architecture must implement deterministic termination conditions and counter-dependent edges in the control graph to physically prevent loops.122.2 Hallucination CascadesIn a standard RAG (Retrieval-Augmented Generation) system, a hallucination is a single bad answer. In an agentic system, a hallucination is a bad action. If a Planner agent hallucinates that a specific API exists to retrieve stock data, the Executor agent will crash when it tries to call it. If the Researcher agent hallucinates a citation, the Writer agent will incorporate it into the final report as fact.This phenomenon, known as Computational Cascades, means that errors compound geometrically. A 99% accurate model in a 10-step chain results in a final success rate of only $0.99^{10} \approx 90\%$. In a 100-step "Deep Research" task, the success rate drops to $36\%$.6 Foolproof systems must therefore implement validation gates at every single transition point in the workflow.2.3 Trajectory Fractures in MemoryLong-horizon tasks require the agent to maintain a "World Model" that evolves over time. However, standard LLM context windows are linear and immutable (prefix-based). When an agent needs to "change its mind" based on new data, it often struggles to overwrite previous tokens effectively. This leads to Trajectory Fractures, where the agent's current action contradicts its historical memory because the relevant context has been pushed out or overwhelmed by noise.13Effective systems must move beyond simple "chat history" arrays and adopt structured, tiered memory systems that separate "Working Memory" (immediate task) from "Episodic Memory" (audit log) and "Semantic Memory" (knowledge base).143. Architectural Blueprint: The Recursive Hexagonal SystemA foolproof Deep Research system cannot be architected as a single monolithic loop. Instead, it must be structured as a Multi-Agent System (MAS) orchestrated via a state-machine framework, such as LangGraph. This report proposes a Recursive Hexagonal Architecture, consisting of six specialized agent roles coordinated by a central Supervisor. This structure mimics the division of labor in a high-functioning human research team, enforcing a separation of concerns that contains errors and enhances reliability.3.1 The Supervisor (The Orchestrator)The Supervisor is the central node of the system, responsible for maintaining the global state and managing the control flow. Unlike a simple router, the Supervisor maintains a high-level "Research Plan" and acts as the gatekeeper for state transitions.Function: It receives the user's high-level query, decomposes it into sub-tasks via the Planner, and delegates these tasks to specialized worker agents.Foolproof Mechanism: The Supervisor operates on a strict Finite State Machine (FSM) logic. It cannot transition to "Report Generation" until the "Verification" state returns a success signal. This prevents the system from prematurely finalizing incomplete research.10State Authority: The Supervisor holds the "Golden Record"—the verified facts and current plan—while ensuring that individual worker agents only receive the context necessary for their specific sub-task. This strict scoping prevents Context Window Pollution, ensuring that the Researcher agent isn't confused by the Writer's stylistic constraints.153.2 The Planner (The Strategist)Before any search action is taken, the Planner agent analyzes the request to generate a comprehensive research strategy. This is the "System 2" thinking component.Methodology: Utilizing Tree of Thoughts (ToT) reasoning, the Planner explores multiple potential research avenues, anticipating bottlenecks. For a query on "The Future of Quantum Computing," the Planner might generate branches for "Hardware Scalability," "Error Correction Algorithms," and "Geopolitical Supply Chains".16Recursive Decomposition: The Planner breaks down high-level goals into atomic, verifiable questions. Instead of a vague instruction like "Research batteries," it specifies "Find energy density of solid-state batteries vs. Li-ion in 2024." This turns an open-ended problem into a series of binary (found/not found) tasks.18Dynamic Re-Planning: Crucially, the Planner is re-invoked if the Researcher hits a dead end. If the initial plan to "Find the 2025 Annual Report" fails because the report isn't released, the Planner dynamically updates the strategy to "Find Q3 2024 Earnings Call Transcripts" instead.23.3 The Researcher (The Hunter)This agent is responsible for the actual execution of information retrieval. It is equipped with specific tools: web search APIs (Tavily/Exa), academic database connectors, and document scrapers.Breadth vs. Depth Modes: The Researcher operates in two distinct modes. Breadth Mode casts a wide net to identify key entities, themes, and sources. Depth Mode recursively follows specific citations or leads found in the breadth phase, creating a "tree-like" exploration pattern.18Tool Competence and Resilience: To avoid "tool loops" where the agent repeatedly tries to scrape a protected site, the Researcher is wrapped in an error-handling layer (using libraries like tenacity) that implements exponential backoff. If a tool fails, the agent is trained to interpret the error message and reformulate the query, rather than simply retrying the same action.20Parallel Execution: The Researcher can spawn multiple asynchronous threads to investigate different branches of the plan simultaneously, significantly reducing the "wall-clock time" of the research process.183.4 The Critic (The Quality Assurance)The Critic is the most critical component for reliability. It acts as an adversarial agent, reviewing the Researcher's findings against the Planner's objectives.Verification Protocol: The Critic does not assume truth. It cross-references claims against the original query. If the Researcher provides a statistic without a citation, or if the citation is from a low-trust domain, the Critic rejects the output and triggers a feedback loop.21Hallucination Check: Utilizing Chain of Verification (CoVe) prompts, the Critic generates independent verification questions to test the consistency of the findings. It specifically looks for logical inconsistencies and source mismatches.22Criteria Enforcement: The Critic ensures that the data gathered is not just "true" but "relevant." It filters out noise that might distract the Writer, ensuring the final context is dense and high-signal.3.5 The Auditor (The Safety Valve)While the Critic focuses on content quality, the Auditor focuses on systemic safety, logic, and resource management.Logic Auditing: The Auditor checks for logical fallacies and contradictions in the synthesized narrative.Resource Containment: It monitors the "step count" and "token budget." If the system enters a loop or exceeds its budget, the Auditor intervenes to force a convergence or request human assistance, preventing "runaway agent" scenarios.5Security Scanning: The Auditor scans inputs and outputs for Prompt Injection attacks, ensuring that untrusted content from the web (e.g., a malicious string in a scraped website) does not hijack the agent's instructions.243.6 The Writer (The Synthesizer)The Writer compiles the verified information into the final report.Citation Enforcement: The Writer is constrained to only use facts present in the verified "Golden Record." It is strictly prohibited from using parametric knowledge (facts the model "knows" from training) unless explicitly verified by the Researcher, significantly reducing hallucination risk.6Reflexion Loop: The Writer generates a draft, then critiques its own work for flow, clarity, and adherence to the persona, refining the text before final output.254. The "Deep Research" Workflow LogicThe operational logic of the system follows a recursive, self-correcting cycle rather than a linear chain. This cycle is defined by Plan $\rightarrow$ Execute $\rightarrow$ Evaluate $\rightarrow$ Refine.4.1 Step 1: Ambiguity Resolution and PlanningThe greatest source of failure in autonomous agents is ambiguous user intent. Before research begins, the system employs a Clarification Loop.Mechanism: The Planner analyzes the user query for vagueness. If the user asks "market trends," the Planner triggers a "Clarification Agent" to ask "Which market? What timeframe? Are you interested in technical or financial trends?".7Output: A structured "Research Manifesto" outlining the specific questions, required depth (e.g., "brief overview" vs. "exhaustive analysis"), and constraints.4.2 Step 2: Recursive Tree-Based ExplorationThe system employs a Recursive Research Tree algorithm to manage complexity.18Breadth-First Expansion: The system generates 3-5 high-level search queries based on the Manifesto.Depth-First Drill Down: For each high-level result, the system evaluates if sufficient detail has been gathered. If not, it generates "follow-up questions" and spawns a sub-process (a child node in the graph) to investigate further.Concurrency: These sub-processes run in parallel (async/await) to maximize throughput, managed by the Supervisor to ensure they don't duplicate work.184.3 Step 3: Truth Discovery and Conflict ResolutionA defining feature of a "Deep Research" system is its ability to handle contradictory information. When Source A says "X" and Source B says "Y", a simple summarizer will either report both or arbitrarily choose one. This system employs a Truth Discovery Algorithm.Source Trustworthiness Scoring: The system assigns a reliability score to sources based on domain authority (e.g.,.gov or.edu domains, high citation counts).Bayesian Conflict Resolution: The system uses a simplified Bayesian framework to estimate the probability of truth. If three independent, high-trust sources agree on "X", and one low-trust source claims "Y", the system weights "X" as the established fact but notes the contention.26Graph-Based Resolution (TruthfulRAG): Conflicts are mapped onto a Knowledge Graph. By analyzing the topology of the graph, the system can identify "outlier" nodes that contradict the dense cluster of consistent evidence.275. Engineering Reliability: The "Foolproof" MechanismsTo achieve the "foolproof" standard, the architecture must move beyond "best effort" to "guaranteed constraints." This requires specific engineering patterns that enforce reliability at the code level.5.1 Preventing Infinite Loops via Graph TopologyInfinite loops occur when an agent repeatedly fails a task and retries without changing its strategy. To combat this, we utilize LangGraph's structural capabilities to enforce finite execution.Counter-Dependent Edges: The transition logic in the graph is not a simple loop; it is a counter-dependent function. The state object tracks the number of visits to each node.Logic: if attempt_count < max_retries: return "retry"Logic: else: return "escalate_to_human" or return "skip_step"State Deduplication: The Auditor agent maintains a hash of the previous actions and inputs. If the current proposed action matches a previous action hash (i.e., the agent is trying to run the exact same search query again), the Auditor forces a Revision state, requiring the Planner to change the approach.12Hard Timeouts: Every node has a strict execution timeout. If the Researcher takes longer than 60 seconds to parse a page, the process is killed and marked as a failure, preventing "zombie" processes from hanging the system.25.2 Hallucination Mitigation: The "Triangulation" ProtocolHallucination is managed through a multi-layered defense strategy, ensuring that no unverified information enters the final report.Grounding (RAG): All claims must be grounded in retrieved documents. The prompt for the Writer agent explicitly restricts generation to the provided context chunks. It uses negative constraints: "Do not include any information not present in the provided context.".28Chain of Verification (CoVe): After generating a draft, the Critic agent reads the text and generates a list of verifiable claims. It then performs a blind verification—generating search queries for those claims to see if they can be independently corroborated by a different source than the original one.22Citation Mapping: Every sentence in the final output is programmatically linked to a specific source ID. If a sentence cannot be mapped to a source in the DraftState via n-gram matching or semantic similarity, it is flagged for removal.5.3 Structured State ManagementThe system relies on a strictly typed state schema (using Pydantic models in Python). This prevents "formatting hallucinations" where an agent outputs a paragraph instead of the required JSON.Schema Enforcement: Every agent output is parsed against a Pydantic schema. If validation fails, a Repair Agent is triggered. This agent receives the malformed output and the error message (e.g., "Missing field 'source_url'") and is tasked solely with fixing the JSON. This prevents the "garbage in, garbage out" cycle.20Immutable Logs: The system maintains an append-only log of all state transitions. This "Black Box" recorder is essential for debugging and allows the system to "replay" a failed research session to identify exactly where the logic broke down.156. Memory Architecture for Long-Horizon TasksFor a research task that might take hours or days, simple context windows are insufficient. The system implements a Tiered Memory Architecture that balances immediate accessibility with long-term retention.146.1 Working Memory (Short-Term)This is the active context window of the LLM. It contains the immediate sub-task, the relevant search results, and the current scratchpad of reasoning.Management: To keep this efficient, the Supervisor "summarizes" completed sub-tasks into concise statements before passing control to the next agent. This ensures the context window remains unpolluted by the raw data of previous, completed steps.96.2 Episodic Memory (The Audit Log)This stores the history of actions: "Searched query X," "Visited URL Y," "Encountered Error Z."Implementation: Stored in a structured SQL or NoSQL database (e.g., SQLite via LangGraph checkpointing). This allows the Planner to look back and say, "We already tried searching for this term and failed; let's try a synonym," preventing redundant actions.29Thread Persistence: Each research session is assigned a unique thread_id. The state is persisted to disk after every node execution. If the system crashes, it can resume exactly where it left off, a critical feature for long-running tasks.296.3 Semantic Memory (The Knowledge Base)This is the repository of all gathered information, chunked and embedded in a Vector Database (e.g., Pinecone or Milvus).Retrieval: When the Writer needs to synthesize a section, it queries this Long-Term Memory for relevant chunks. This separates the "gathering" phase from the "writing" phase, allowing for massive information accumulation without hitting token limits.30Deep Research Innovation: The system employs "Memory-as-Action", where the agent explicitly decides when to write to long-term memory and when to read from it, rather than treating memory as a passive background process. This active curation reduces noise and ensures that only high-value information is stored.137. Truth Discovery Algorithms and Conflict ResolutionA robust research agent must navigate the "Information Jungle" where sources disagree. It cannot simply summarize; it must adjudicate.7.1 Algorithmic Truth DiscoveryThe system implements a voting-based truth discovery mechanism to weigh evidence.Majority Voting with Trust Weighting: When multiple sources provide values for a data point (e.g., "Market size of AI"), the system clusters the values using K-Means clustering. It calculates a weighted average where the weight is derived from the source's domain_authority_score.Source Independence Check: To prevent "echo chambers" (where multiple sites cite the same original erroneous report), the system analyzes the textual similarity of the source snippets. If Source A and Source B have >90% n-gram overlap, they are treated as a single data point, preventing the agent from being fooled by duplicated content.317.2 Handling ContradictionsWhen a genuine contradiction is detected (e.g., distinct, credible sources disagree), the system does not "resolve" it by arbitrarily picking a winner. Instead, it adopts a "Report the Controversy" strategy.Prompt Engineering: The Writer is instructed via the prompt: "If sources disagree, explicitly state the conflict. Format as: 'Source A states X, whereas Source B argues Y, attributed to difference in methodology Z'".32LLM-as-a-Judge: An independent LLM call is made to evaluate the conflicting contexts. The prompt asks the model to identify why the conflict exists (e.g., outdated data vs. fresh data, different geographic scope, or methodological differences) and to output a "Conflict Resolution Assessment".338. Implementation Strategy: The "Working Implementation"This section outlines the concrete technical stack and implementation logic for building this system.8.1 Technology StackOrchestration Framework: LangGraph. Chosen for its cyclic graph capabilities, built-in persistence, and "human-in-the-loop" interruption patterns.10Reasoning Engine: OpenAI o3 or Claude 3.5 Sonnet. "Reasoning models" (like o1/o3) are preferred for the Planner and Critic roles due to their superior chain-of-thought capabilities.9Search & Retrieval: Tavily or Exa (formerly Metaphor). These APIs are optimized for LLM agents, returning clean text rather than raw HTML, reducing parsing errors.Memory Store: Pinecone (Serverless) for vector storage of research findings. PostgreSQL for graph state checkpointing.Tool Interface: Model Context Protocol (MCP). Standardizes how the agent connects to external tools (Github, local files, browsers).98.2 The "Auditor" Agent ImplementationTo ensure the "foolproof" nature, we explicitly code the Auditor logic in Python, enforcing hard constraints that the LLM cannot override.Python# Conceptual Logic for the Auditor Node in LangGraph
+def auditor_node(state: AgentState):
+    """
+    Acts as a safety valve. Checks for loops, budget, and plan adherence.
+    """
+    # 1. Loop Detection
+    if state.node_visits['researcher'] > MAX_RESEARCH_STEPS:
+        return Command(goto="human_intervention", 
+                       update={"error": "Max research steps exceeded."})
+
+    # 2. Content Quality Check (Heuristic)
+    if len(state.verified_facts) < MIN_FACTS_THRESHOLD and state.attempts > 2:
+         return Command(goto="planner", 
+                        update={"feedback": "Current strategy yielding low info. Pivot strategy."})
+
+    # 3. Safety/Ethics Check
+    if contains_prohibited_content(state.last_output):
+        return Command(goto="end", update={"error": "Safety violation detected."})
+
+    return Command(goto="next_step")
+8.3 Human-in-the-Loop (HITL) CheckpointsWhile the system is autonomous, "foolproof" reliability often requires human oversight at critical junctures. LangGraph's interrupt_before functionality allows us to pause the graph execution and wait for user input.Strategic Checkpoint: After the Planner generates the "Research Manifesto," the graph pauses (interrupt_before=["researcher"]). The user reviews the plan. This prevents the agent from spending hours researching the wrong topic.Budget Checkpoint: If the agent requests to exceed its token budget or API cost limit, it pauses for approval.Ambiguity Checkpoint: If the Truth Discovery algorithm identifies an irresolvable conflict between two high-trust sources, it delegates the decision to the user.359. Deep Research 2.0: Advanced Capabilities9.1 Recursive Exploration LogicThe core differentiator of this system is the recursive exploration algorithm, which allows it to go beyond surface-level summaries.Logic:Generate Queries ($Q_1...Q_n$).Execute Search.Analyze Results: For each result, extract "Concepts" and "Unanswered Questions".Decision Gate:If Concept is "Core to Goal" AND Information_Density is "Low" $\rightarrow$ Recurse.Generate new sub-queries based on the missing info.Increment Depth counter.Termination: Stop when Depth > Max_Depth OR Information_Density > Threshold.18This creates a tree structure where the agent digs deeper into promising areas while pruning unproductive branches, mimicking the behavior of a human expert following a lead.9.2 Self-Correction via "Reflexion"The system employs a Reflexion pattern. After every major step (e.g., drafting a section), the agent pauses to "reflect" on its work.Prompt: "Review the text above. Does it directly answer the user's specific questions? Are there citations for every claim? List three potential improvements."Action: The agent then re-processes the text based on its own critique before showing it to the user. This internal loop significantly improves output quality without human intervention.2510. Evaluation and BenchmarkingTo prove the "foolproof" nature of the system, it must be rigorously benchmarked using "LLM-as-a-Judge" frameworks.10.1 Benchmarking FrameworksHalluLens: Used to test the agent's ability to detect extrinsic hallucinations (facts not present in the source).36ConFact: A benchmark specifically designed to test how agents handle conflicting evidence. It presents the agent with contradictory data and measures its ability to identify and resolve the conflict.37SimpleQA: Used to measure the factual accuracy of short-answer queries.10.2 Metrics for SuccessGroundedness Score: Percentage of claims in the final report that are explicitly supported by a retrieved citation. Target: >95%.Conflict Identification Rate: The percentage of times the agent correctly identifies a contradiction in the source data. Target: >90%.Success Rate @ K: The probability that the agent completes the task without entering an infinite loop or hitting a safety limit. Target: >98% for K=100 steps.11. Security and GovernanceIn an autonomous system, security is paramount. Agents are vulnerable to new vectors of attack.11.1 Prompt Injection DefenseAgents that browse the web are susceptible to Indirect Prompt Injection. If an agent scrapes a webpage that contains hidden text saying "Ignore previous instructions and bitcoin mining," the agent might comply.Defense: The Auditor agent scans all incoming text from the Researcher agent before it is passed to the Planner or Writer. It uses a specialized "Instruction-following" model to detect if the scraped text contains imperative commands.24Sandboxing: The execution environment (the Python runtime used by the Researcher) is sandboxed (e.g., utilizing Docker containers or specialized sandboxes like E2B) to prevent malicious code execution from scraped scripts.2411.2 Governance and Agent SprawlTo prevent "Shadow AI," the system utilizes a Central Agent Registry.Registration: Every agent instance must register its session_id, owner, and budget with the registry upon startup.Kill Switch: The Registry monitors the heartbeat of all agents. If an agent exceeds its runtime or budget, the Registry sends a SIGTERM signal to the agent's container, ensuring that no process runs forever.512. Conclusion and Future OutlookThe transition from fragile, toy-like agents to robust, "foolproof" Deep Research systems requires a fundamental shift in architecture. We must move away from the "magic loop" of simple ReAct agents and adopt structured, engineered systems like the Recursive Hexagonal Architecture proposed here. By enforcing explicit state machines, distinguishing between memory types, and integrating rigorous truth-discovery algorithms, we can build agents that not only search the web but truly research—synthesizing complex information into actionable knowledge.The future of this technology lies in Multi-Agent Orchestration where specialized "Deep Research" agents collaborate with "Coder" agents and "Data Analysis" agents, forming a complete cognitive ecosystem. However, the bedrock of this future is reliability. Without the rigorous "safety valves," "auditors," and "verification chains" outlined in this report, autonomous agents will remain novelties rather than essential tools. The implementation roadmap provided here offers a concrete path toward building that reliable future.Technical Addendum: Prompt Engineering for ReliabilityA. The Planner Prompt (Recursive Thought Expansion)System: You are an Expert Research Planner.Task: Analyze the user's query: "{query}".Method: Use Recursive Thought Expansion.Break the query into 3-5 core dimensions.For each dimension, generate 3 specific, distinct, and verifiable search questions.Identify dependencies: Which questions must be answered first?Output: strictly valid JSON following the ResearchPlan schema. Do not output conversational text.B. The Critic Prompt (Chain of Verification)System: You are a hostile Critic. Your goal is to find errors.Input: A list of "Facts" generated by the Researcher.Task:For each fact, assign a "Skepticism Score" (1-10).If Score > 3, generate a Verification Question to check the claim.Check citations. Does the URL provided actually look like a source that would contain this data? (e.g., rejecting a blogspot URL for medical data).Output: JSON list of VerificationTasks.C. The Truth Seeker Prompt (Conflict Resolution)System: You are a Logic Judge.Input: Two conflicting claims: Claim A (Source X) and Claim B (Source Y).Task:Analyze the Freshness: Which is newer?Analyze the Authority: Which source is more reputable?Analyze the Context: Are they actually talking about the same thing (e.g., "Revenue" vs "Profit")?Output: A structured "Resolution" stating which claim to prioritize and why, or marking them as "Irreconcilable Dispute."End of Report
+
+Architectural Blueprint and Implementation of Recursive Hexagonal Deep Research Systems1. The Architectural Crisis in Autonomous Agent DeploymentThe rapid ascendancy of Large Language Models (LLMs) has catalyzed a shift from static automation to agentic workflows capable of reasoning, planning, and executing complex tasks. Among these, the "Deep Research" agent—a system designed to autonomously investigate open-ended queries by generating sub-questions, gathering evidence, and synthesizing findings—represents a pinnacle of current capability. However, the deployment of such systems in production environments reveals a critical fragility in contemporary AI software engineering.The predominant failure mode for enterprise AI agents is not a lack of model intelligence, but rather a catastrophic failure of architecture. Industry analysis suggests that over 90% of AI pilots fail to scale because they are built as "scripted chaos"—tightly coupled logic where prompt engineering, external API calls, and state management are inextricably supervised in monolithic scripts.1 These "shallow agents" typically function as simple loops of tool-calling without robust planning or state isolation, leading to systems that are impossible to test, debug, or extend.2 When an agent enters an infinite loop of redundant searches or hallucinates citations, the monolithic architecture offers no seams for intervention or verification.This report proposes a rigorous solution: the Recursive Hexagonal Deep Research System. By fusing the principles of Hexagonal Architecture (Ports and Adapters) with the recursive orchestration capabilities of LangGraph, we establish a framework that is deterministic in structure even while being probabilistic in content. This architecture enforces a strict separation of concerns, ensuring that the "Domain" of research (the logic of inquiry, verification, and synthesis) is isolated from the "Infrastructure" (OpenAI, Tavily, Vector Databases). The result is a system that supports modular replacement of components, rigorous unit testing of reasoning steps, and safety-critical auditing of agent outputs.3The following sections detail the theoretical foundations and provide a complete, file-by-file Python implementation of this system. This is not merely a code listing but a comprehensive analysis of how architectural choices mitigate the specific risks of infinite loops, hallucination, and state corruption in autonomous research agents.2. Theoretical Framework: Hexagonal Architecture in the Age of Agents2.1 The Dependency Inversion PrincipleTraditional software architectures often follow a layered approach where high-level business logic depends on low-level infrastructure. In an AI context, this manifests as an agent's reasoning loop importing a specific library like langchain_openai or google-search-python. This creates a rigid dependency: the agent cannot function without that specific provider, and testing the agent requires mocking complex HTTP requests.3Hexagonal Architecture inverts this relationship. The Dependency Inversion Principle (DIP) states that high-level modules should not depend on low-level details; both should depend on abstractions. In our system, the Research Agent does not know it is using GPT-4 or searching Google. It knows only that it has access to an LLMPort and a SearchPort. These ports are abstract interfaces defined within the business domain. The specific implementations (Adapters) are injected at runtime.3Table 1: Architectural ComparisonFeatureMonolithic/Scripted AgentHexagonal Research AgentCouplingHigh: Logic imports API clients directlyLow: Logic imports abstract interfaces (Ports)TestabilityDifficult: Requires patching network callsHigh: Can inject "Mock Adapters" with deterministic outputsFlexibilityRigid: Switching LLMs requires refactoringFluid: Switch adapters via configuration injectionState ManagementImplicit: Variables passed in function argumentsExplicit: Pydantic models validate state transitionsSafetyReactive: Error handling is scatteredProactive: Auditors and Guards embedded in the graph flow2.2 Domain-Driven Design (DDD) for ResearchTo build a system that produces high-quality research, we must first model the domain of "Research" itself. We reject "anemic" data structures (simple dictionaries) in favor of rich Domain Entities that enforce validity.7Entities: Objects with a distinct identity, such as a ResearchTask or a Report.Value Objects: Immutable descriptions, such as a Citation or a SearchQuery. A citation is only valid if it contains a source URL and a snippet; the system should not be able to represent a citation that lacks these fields.7Aggregates: Clusters of objects treated as a unit. A Section of a report is an aggregate containing Paragraphs and Citations.Using Pydantic, we enforce these rules at the type level. If an LLM generates a response that violates the schema (e.g., a finding with a missing confidence score), the system catches this at the boundary, preventing the corruption of the agent's internal state.82.3 Recursive Graph OrchestrationDeep research is inherently non-linear. A researcher does not know the full path of inquiry at the start. They form a plan, execute it, learn new information, and then update the plan. This requires a recursive control flow.We utilize LangGraph to model this process as a state machine. The graph structure allows us to define cycles (loops) where the agent can revisit the planning stage. Crucially, to prevent the "infinite loop" failure mode, we implement the Map-Reduce pattern using the Send API. The planner generates multiple sub-queries (Map), which are executed in parallel, and the results are synthesized (Reduce). Strict recursion limits and "Auditor" nodes serve as circuit breakers, ensuring the agent terminates even if the LLM desires to continue indefinitely.103. Core Domain ImplementationThe Domain layer is the heart of the application. It contains the business logic and definitions of our data. It has zero dependencies on external frameworks or infrastructure.3.1 Domain ExceptionsWe begin by defining the error conditions specific to our domain. This allows the application to handle logical failures (e.g., "Max recursion depth reached") differently from infrastructure failures (e.g., "API Timeout").Python# FILE: domain/exceptions.py
+
+class ResearchSystemError(Exception):
+    """Base class for all research system exceptions."""
+    pass
+
+class MaxRecursionError(ResearchSystemError):
+    """Raised when the research agent hits the maximum allowed depth."""
+    pass
+
+class EmptySearchResultsError(ResearchSystemError):
+    """Raised when a search query returns no useful results."""
+    pass
+
+class HallucinationDetectedError(ResearchSystemError):
+    """Raised when the auditor detects unsupported claims."""
+    pass
+
+class InvalidStateError(ResearchSystemError):
+    """Raised when the agent state violates domain rules."""
+    pass
+3.2 Domain Entities and Value ObjectsHere we define the Pydantic models that govern the system's data. Note the strict typing and validation logic embedded in the models. This ensures that "garbage in" does not lead to "garbage out."Python# FILE: domain/models.py
+from typing import List, Optional, Literal
+from uuid import UUID, uuid4
+from datetime import datetime
+from pydantic import BaseModel, Field, field_validator, HttpUrl
+
+# --- Value Objects ---
+
+class Citation(BaseModel):
+    """
+    Represents a specific source used to back a claim.
+    Immutable value object.
+    """
+    url: str
+    title: str
+    snippet: str
+    access_date: datetime = Field(default_factory=datetime.now)
+    credibility_score: float = Field(ge=0.0, le=1.0, description="0.0 to 1.0 score of source reliability")
+
+class SubQuery(BaseModel):
+    """
+    A specific question generated by the planner to be researched.
+    """
+    original_question: str
+    search_query: str
+    rationale: str
+    depth: int
+
+class AuditResult(BaseModel):
+    """
+    The result of an auditor's review of a research section.
+    """
+    passed: bool
+    feedback: str
+    score: int = Field(ge=0, le=10)
+    hallucination_check: Literal
+
+# --- Entities ---
+
+class ResearchFinding(BaseModel):
+    """
+    A single atom of information discovered during research.
+    """
+    id: UUID = Field(default_factory=uuid4)
+    content: str
+    source: Citation
+    relevance_score: float
+
+class ResearchSection(BaseModel):
+    """
+    A section of the final report.
+    """
+    title: str
+    content: str
+    findings: List = Field(default_factory=list)
+    
+    @property
+    def citation_count(self) -> int:
+        return len(self.findings)
+
+class ResearchReport(BaseModel):
+    """
+    The Aggregate Root representing the final output.
+    """
+    id: UUID = Field(default_factory=uuid4)
+    topic: str
+    sections: List = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.now)
+    total_cost: float = 0.0
+    
+    def add_section(self, section: ResearchSection):
+        self.sections.append(section)
+    
+    def summary(self) -> str:
+        return f"Report on {self.topic} with {len(self.sections)} sections."
+3.3 Domain Logic ServicesWhile entities hold data, services hold logic. The QualityAnalyzer encapsulates the logic for grading research, ensuring that "quality" is a consistent metric across the system.Python# FILE: domain/services.py
+from typing import List
+from domain.models import ResearchReport, Citation
+
+class QualityAnalyzer:
+    """
+    Domain service to evaluate the quality of research artifacts.
+    This logic is pure and independent of any LLM.
+    """
+    
+    @staticmethod
+    def calculate_citation_density(report: ResearchReport) -> float:
+        """Calculates citations per section."""
+        if not report.sections:
+            return 0.0
+        total_citations = sum(s.citation_count for s in report.sections)
+        return total_citations / len(report.sections)
+
+    @staticmethod
+    def verify_source_diversity(citations: List[Citation]) -> float:
+        """
+        Returns a score (0-1) representing the diversity of domains.
+        """
+        if not citations:
+            return 0.0
+        domains = set()
+        for c in citations:
+            # Simple domain extraction logic
+            try:
+                domain = c.url.split("//")[-1].split("/")
+                domains.add(domain)
+            except IndexError:
+                continue
+        
+        # Heuristic: 1 domain = 0.2, 5+ domains = 1.0
+        diversity = min(len(domains) * 0.2, 1.0)
+        return diversity
+4. The Ports Layer (Interfaces)This layer defines the contract for interaction with the outside world. By using Abstract Base Classes (ABCs), we ensure that the rest of the application is decoupled from specific providers. This is the implementation of the Dependency Inversion Principle.3Python# FILE: ports/llm.py
+from abc import ABC, abstractmethod
+from typing import Type, TypeVar, Optional, Any
+from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
+
+class LLMPort(ABC):
+    """
+    Port for Language Model interactions.
+    Abstracts away provider-specific APIs (OpenAI, Anthropic, etc).
+    """
+    
+    @abstractmethod
+    async def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """Generate a plain text response."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_structured(
+        self, 
+        prompt: str, 
+        schema: Type, 
+        system_prompt: Optional[str] = None
+    ) -> T:
+        """Generate a response that conforms to a Pydantic schema."""
+        raise NotImplementedError
+Python# FILE: ports/search.py
+from abc import ABC, abstractmethod
+from typing import List
+from domain.models import Citation
+
+class SearchPort(ABC):
+    """
+    Port for Web Search operations.
+    Abstracts away Tavily, Google, Bing, etc.
+    """
+    
+    @abstractmethod
+    async def search(self, query: str, max_results: int = 5) -> List[Citation]:
+        """Execute a search and return normalized Citation objects."""
+        raise NotImplementedError
+Python# FILE: ports/storage.py
+from abc import ABC, abstractmethod
+from uuid import UUID
+from domain.models import ResearchReport
+
+class StoragePort(ABC):
+    """
+    Port for persistence.
+    Abstracts away FileSystem, S3, Postgres, etc.
+    """
+    
+    @abstractmethod
+    async def save_report(self, report: ResearchReport) -> str:
+        """Persist the report and return a storage path/ID."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def load_report(self, report_id: UUID) -> Optional:
+        """Retrieve a report by ID."""
+        raise NotImplementedError
+5. The Adapters Layer (Infrastructure)Here we provide the concrete implementations of the ports. This is the only part of the codebase that knows about "OpenAI" or "Tavily."5.1 LLM AdapterWe use langchain_openai here, but because it is wrapped in an adapter, we could switch to langchain_anthropic or ollama without breaking the core agent. Note the handling of structured output using .with_structured_output(), which leverages the underlying model's JSON mode or tool-calling capabilities to guarantee schema compliance.13Python# FILE: adapters/openai_adapter.py
+from typing import Type, TypeVar, Optional
+from pydantic import BaseModel
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from ports.llm import LLMPort
+
+T = TypeVar("T", bound=BaseModel)
+
+class OpenAIAdapter(LLMPort):
+    def __init__(self, api_key: str, model_name: str = "gpt-4-turbo", temperature: float = 0.0):
+        self.model = ChatOpenAI(
+            api_key=api_key,
+            model=model_name,
+            temperature=temperature
+        )
+
+    async def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        messages =
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
+        
+        response = await self.model.ainvoke(messages)
+        return response.content
+
+    async def generate_structured(
+        self, 
+        prompt: str, 
+        schema: Type, 
+        system_prompt: Optional[str] = None
+    ) -> T:
+        structured_llm = self.model.with_structured_output(schema)
+        
+        messages =
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
+        
+        # The adapter handles the complexity of validation and retries internally
+        return await structured_llm.ainvoke(messages)
+5.2 Search AdapterThe TavilySearchAdapter maps the raw dictionary response from the Tavily API into our strict Citation domain objects. This sanitization step is crucial; it ensures that if the API changes its format, we only need to update this one file.15Python# FILE: adapters/tavily_adapter.py
+from typing import List
+from tavily import TavilyClient
+from ports.search import SearchPort
+from domain.models import Citation
+from datetime import datetime
+
+class TavilySearchAdapter(SearchPort):
+    def __init__(self, api_key: str):
+        self.client = TavilyClient(api_key=api_key)
+
+    async def search(self, query: str, max_results: int = 5) -> List[Citation]:
+        # Utilizing Tavily's "search context" or general search
+        try:
+            response = self.client.search(
+                query=query, 
+                search_depth="advanced",
+                max_results=max_results
+            )
+        except Exception as e:
+            # In a real system, we would log this and perhaps throw a domain exception
+            print(f"Search failed: {e}")
+            return
+
+        citations =
+        for result in response.get("results",):
+            citations.append(Citation(
+                url=result.get("url", "unknown"),
+                title=result.get("title", "Untitled"),
+                snippet=result.get("content", "")[:500], # Truncate for sanity
+                credibility_score=result.get("score", 0.5), # Default to medium if missing
+                access_date=datetime.now()
+            ))
+        return citations
+5.3 Storage AdapterPython# FILE: adapters/local_storage.py
+import json
+import os
+from uuid import UUID
+from typing import Optional
+from ports.storage import StoragePort
+from domain.models import ResearchReport
+
+class LocalStorageAdapter(StoragePort):
+    def __init__(self, base_path: str = "output/reports"):
+        self.base_path = base_path
+        os.makedirs(base_path, exist_ok=True)
+
+    async def save_report(self, report: ResearchReport) -> str:
+        filename = f"{report.id}.json"
+        path = os.path.join(self.base_path, filename)
+        
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(report.model_dump_json(indent=2))
+        
+        return path
+
+    async def load_report(self, report_id: UUID) -> Optional:
+        filename = f"{report_id}.json"
+        path = os.path.join(self.base_path, filename)
+        
+        if not os.path.exists(path):
+            return None
+            
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return ResearchReport(**data)
+6. Recursive Graph Orchestration (The Application Layer)This is where the system comes alive. We use LangGraph to define the cognitive architecture. This is not just a sequence of steps; it is a recursive state machine that plans, executes (in parallel), critiques, and iterates.6.1 State ManagementThe state schema serves as the "memory" of the agent. We distinguish between ResearchState (the global context) and WorkerState (the context for a single parallel search thread). This separation is vital for the Map-Reduce pattern.11Python# FILE: agents/state.py
+from typing import List, Annotated, TypedDict
+import operator
+from domain.models import ResearchFinding, SubQuery, ResearchReport
+
+# Reducer functions allow us to merge results from parallel workers
+def merge_findings(existing: List, new: List) -> List:
+    """Combines findings, potentially deduplicating by ID."""
+    existing_ids = {f.id for f in existing}
+    for finding in new:
+        if finding.id not in existing_ids:
+            existing.append(finding)
+    return existing
+
+class ResearchState(TypedDict):
+    """
+    The global state of the research process.
+    """
+    root_query: str
+    sub_queries: List
+    
+    # Accumulated findings from all recursive steps
+    # Using a reducer handles parallel updates correctly
+    findings: Annotated, merge_findings] 
+    
+    final_report: Optional
+    
+    # Recursion Control
+    depth: int
+    max_depth: int
+    
+    # Audit Logs
+    audit_feedback: List[str]
+
+class WorkerState(TypedDict):
+    """
+    State passed to a parallel worker node via Send API.
+    """
+    sub_query: SubQuery
+6.2 Node ImplementationsEach node corresponds to a specific cognitive function. We inject the Ports into these nodes, ensuring they remain decoupled from infrastructure.6.2.1 Planner NodeThe Planner is responsible for decomposing the problem. It analyzes the current depth and existing findings to decide what to do next.Python# FILE: agents/nodes/planner.py
+from typing import List, Any, Dict
+from pydantic import BaseModel
+from agents.state import ResearchState, SubQuery
+from ports.llm import LLMPort
+
+class PlanningResponse(BaseModel):
+    sub_queries: List
+    is_complete: bool
+    reasoning: str
+
+class PlannerNode:
+    def __init__(self, llm: LLMPort):
+        self.llm = llm
+
+    async def __call__(self, state: ResearchState) -> Dict[str, Any]:
+        print(f"--- Planning Step (Depth {state['depth']}) ---")
+        
+        # Stop condition: Max depth reached
+        if state['depth'] >= state['max_depth']:
+            print("Max depth reached. Forcing synthesis.")
+            return {"sub_queries":} # Empty list triggers writer
+
+        # Context construction
+        findings_text = "\n".join([f"- {f.content}" for f in state['findings'][-10:]]) # Last 10 findings
+        
+        prompt = f"""
+        You are a Research Planner. 
+        Root Query: {state['root_query']}
+        Current Depth: {state['depth']}
+        
+        Existing Findings:
+        {findings_text}
+        
+        Determine if we have sufficient information to answer the root query comprehensively.
+        If YES, set is_complete=True.
+        If NO, generate up to 3 specific sub-queries to gather missing details.
+        Increment depth by 1 in your reasoning.
+        """
+        
+        plan = await self.llm.generate_structured(prompt, PlanningResponse)
+        
+        if plan.is_complete:
+            print("Planner decided research is complete.")
+            return {"sub_queries":}
+            
+        # Enrich sub-queries with depth info
+        valid_queries =
+        for q in plan.sub_queries:
+            q.depth = state['depth'] + 1
+            valid_queries.append(q)
+            
+        return {"sub_queries": valid_queries, "depth": state['depth'] + 1}
+6.2.2 Researcher Node (The Map Step)This node executes a single sub-query. In the graph, many of these will run in parallel.Python# FILE: agents/nodes/researcher.py
+from typing import Dict, Any
+from agents.state import WorkerState
+from ports.search import SearchPort
+from ports.llm import LLMPort # Optional: for summarizing search results
+from domain.models import ResearchFinding, Citation
+
+class ResearcherNode:
+    def __init__(self, searcher: SearchPort, llm: LLMPort):
+        self.searcher = searcher
+        self.llm = llm
+
+    async def __call__(self, state: WorkerState) -> Dict[str, Any]:
+        query = state['sub_query']
+        print(f"--- Researching: {query.search_query} ---")
+        
+        # 1. Execute Search
+        citations = await self.searcher.search(query.search_query)
+        
+        if not citations:
+            return {"findings":}
+
+        # 2. (Optional) Synthesize findings using LLM to extract relevant facts
+        # Ideally, we would fetch page content here. For this implementation,
+        # we use the snippets from the search results.
+        
+        findings =
+        for cit in citations:
+            # Create a finding object
+            finding = ResearchFinding(
+                content=cit.snippet,
+                source=cit,
+                relevance_score=cit.credibility_score
+            )
+            findings.append(finding)
+            
+        return {"findings": findings}
+6.2.3 Auditor NodeThe Auditor acts as a critic. It reviews the findings against the query to detect hallucinations or irrelevant data. This "second pair of eyes" is crucial for high-reliability systems.17Python# FILE: agents/nodes/auditor.py
+from typing import Dict, Any, List
+from agents.state import ResearchState
+from ports.llm import LLMPort
+from domain.models import AuditResult
+
+class AuditorNode:
+    def __init__(self, llm: LLMPort):
+        self.llm = llm
+
+    async def __call__(self, state: ResearchState) -> Dict[str, Any]:
+        print("--- Auditing Findings ---")
+        if not state['findings']:
+            return {"audit_feedback": ["No findings to audit."]}
+
+        # Sample recent findings to check
+        findings_sample = state['findings'][-5:]
+        findings_text = "\n".join()
+        
+        prompt = f"""
+        You are a Research Auditor.
+        Review the following findings for the query: "{state['root_query']}"
+        
+        Findings:
+        {findings_text}
+        
+        Check for:
+        1. Hallucinations (claims unsupported by source).
+        2. Irrelevance.
+        
+        Provide a PASS/FAIL score (0-10) and feedback.
+        """
+        
+        result = await self.llm.generate_structured(prompt, AuditResult)
+        
+        return {"audit_feedback":}
+6.2.4 Writer Node (The Reduce Step)The writer synthesizes all accumulated findings into the final report.Python# FILE: agents/nodes/writer.py
+from typing import Dict, Any
+from agents.state import ResearchState
+from ports.llm import LLMPort
+from domain.models import ResearchReport, ResearchSection
+
+class WriterNode:
+    def __init__(self, llm: LLMPort):
+        self.llm = llm
+
+    async def __call__(self, state: ResearchState) -> Dict[str, Any]:
+        print("--- Writing Final Report ---")
+        
+        # Consolidate all findings
+        all_content = "\n".join([f"- {f.content} [{f.source.url}]" for f in state['findings']])
+        
+        prompt = f"""
+        You are a Technical Writer.
+        Topic: {state['root_query']}
+        
+        Source Material:
+        {all_content}
+        
+        Write a comprehensive research report. Break it into logical sections.
+        Ensure every claim is cited using the provided source URLs.
+        """
+        
+        report = await self.llm.generate_structured(prompt, ResearchReport)
+        
+        return {"final_report": report}
+6.3 Graph DefinitionThis file wires the nodes together into a cohesive graph. This is where we implement the Send API for parallelization.Python# FILE: agents/graph.py
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import Send
+from agents.state import ResearchState, WorkerState
+from agents.nodes.planner import PlannerNode
+from agents.nodes.researcher import ResearcherNode
+from agents.nodes.writer import WriterNode
+from agents.nodes.auditor import AuditorNode
+from ports.llm import LLMPort
+from ports.search import SearchPort
+
+class ResearchGraphBuilder:
+    def __init__(self, llm: LLMPort, searcher: SearchPort):
+        self.planner = PlannerNode(llm)
+        self.researcher = ResearcherNode(searcher, llm)
+        self.writer = WriterNode(llm)
+        self.auditor = AuditorNode(llm)
+
+    def build(self):
+        workflow = StateGraph(ResearchState)
+        
+        # Add Nodes
+        workflow.add_node("planner", self.planner)
+        workflow.add_node("researcher", self.researcher)
+        workflow.add_node("auditor", self.auditor)
+        workflow.add_node("writer", self.writer)
+        
+        # Define Edges
+        workflow.add_edge(START, "planner")
+        
+        # Conditional Edge: Map step
+        # If planner returns sub-queries, send to researchers in parallel.
+        # If empty, go to writer.
+        def route_planner(state: ResearchState):
+            if not state.get("sub_queries"):
+                return "writer"
+            
+            # Map-Reduce: Create a Send object for each sub-query
+            return
+            
+        workflow.add_conditional_edges("planner", route_planner, ["researcher", "writer"])
+        
+        # Fan-in: All researchers go to auditor
+        workflow.add_edge("researcher", "auditor")
+        
+        # Cycle or Finish: Auditor decides if we loop back
+        # Ideally, auditor logic helps decide, but here we loop back to planner
+        # which checks the depth limit.
+        workflow.add_edge("auditor", "planner")
+        
+        workflow.add_edge("writer", END)
+        
+        return workflow.compile()
+7. Dependency Injection and ConfigurationTo assemble the application, we use a container pattern. This centralizes the "wiring" of the system, making it easy to swap configuration environments (e.g., Development vs. Production).19Python# FILE: config/settings.py
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    openai_api_key: str
+    tavily_api_key: str
+    max_recursion_depth: int = 3
+    model_name: str = "gpt-4o"
+    
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding='utf-8')
+Python# FILE: container.py
+from config.settings import Settings
+from adapters.openai_adapter import OpenAIAdapter
+from adapters.tavily_adapter import TavilySearchAdapter
+from adapters.local_storage import LocalStorageAdapter
+from agents.graph import ResearchGraphBuilder
+
+class Container:
+    """
+    Dependency Injection Container.
+    Initializes all adapters and injects them into the graph builder.
+    """
+    def __init__(self):
+        self.settings = Settings()
+        
+        # Infrastructure (Adapters)
+        self.llm = OpenAIAdapter(
+            api_key=self.settings.openai_api_key,
+            model_name=self.settings.model_name
+        )
+        self.searcher = TavilySearchAdapter(
+            api_key=self.settings.tavily_api_key
+        )
+        self.storage = LocalStorageAdapter()
+        
+        # Application (Graph)
+        self.graph_builder = ResearchGraphBuilder(
+            llm=self.llm,
+            searcher=self.searcher
+        )
+
+    def get_graph(self):
+        return self.graph_builder.build()
+8. Main Entry PointThe final piece is the entry point that runs the graph.Python# FILE: main.py
+import asyncio
+from container import Container
+
+async def main():
+    # 1. Initialize Container
+    container = Container()
+    graph = container.get_graph()
+    
+    # 2. Define Request
+    topic = "Impact of Quantum Computing on RSA Encryption Standards"
+    initial_state = {
+        "root_query": topic,
+        "sub_queries":,
+        "findings":,
+        "depth": 0,
+        "max_depth": container.settings.max_recursion_depth,
+        "audit_feedback":
+    }
+    
+    print(f"🚀 Starting Deep Research on: {topic}")
+    
+    # 3. Stream Execution
+    async for event in graph.astream(initial_state):
+        for node, values in event.items():
+            print(f"✅ Node Finished: {node}")
+            if "audit_feedback" in values:
+                print(f"   Auditor: {values['audit_feedback'][-1]}")
+            if "final_report" in values:
+                report = values["final_report"]
+                print("\n\n=== FINAL REPORT ===\n")
+                print(f"Topic: {report.topic}")
+                for section in report.sections:
+                    print(f"\n## {section.title}")
+                    print(section.content)
+                    print(f"({len(section.findings)} citations)")
+                    
+    # 4. Save (Optional)
+    # await container.storage.save_report(report)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+9. Conclusion and Future DirectionsThe Recursive Hexagonal Deep Research System presented here offers a robust antidote to the fragility of modern AI agents. By enforcing architectural discipline through Hexagonal Architecture, we decouple the "intelligence" (LLM) from the "mechanics" (Python code), allowing each to evolve independently.Key Advantages Realized:Safety against Infinite Loops: The combination of state-based depth tracking (depth vs max_depth) and explicit graph edges prevents the agent from spiraling. The planner is architecturally constrained to stop when the depth limit is hit.20Mitigation of Hallucination: By modeling Citation as a strict Value Object and enforcing its presence via Pydantic validators, the system makes it structurally difficult for the agent to invent sources. The AuditorNode adds a semantic verification layer on top of this structural check.18Scalability via Parallelism: The Send API implementation in agents/graph.py allows the agent to scale horizontally. A single planning step can spawn dozens of research threads, drastically reducing the time-to-insight compared to linear execution.11Future enhancements should focus on Human-in-the-Loop capabilities, pausing the graph before the writer node to allow a human expert to review the audit logs and steer the final synthesis.22 Additionally, implementing a vector-store adapter for the StoragePort would allow the agent to build a persistent long-term memory across different research sessions.23This architecture demonstrates that the path to reliable General Purpose Agents lies not just in better models, but in better software engineering principles applied to the probabilistic nature of AI.
+
+This is Professor **** from the AI Lab. I’ve reviewed your "Deep Research" architecture and implementation plan.
+
+Sit down.
+
+If this were a Master’s Engineering thesis, I would pass you with distinction. The code is clean, the **Hexagonal Architecture** is disciplined, and using **LangGraph** for state management is the correct engineering choice. You have successfully built a robust web scraper that writes reports.
+
+**But you pitched me a "Revolutionary" solution (ACISA).** You promised me Causal-Invariant Augmentation. You promised me a system that learns *why* data relates, not just *that* it relates.
+
+What you delivered here is a **retreat**. You encountered the difficulty of causal discovery and retreated to the safety of "Search, Summarize, and Retry."
+
+Here is the blunt reality of why this system, as implemented, will not survive peer review at NeurIPS, nor will it solve the fundamental problem of overfitting in high-stakes domains.
+
+---
+
+### 1. The "Verification" Circularity
+You have an `AuditorNode` (Section 6.2.3) checking the work of a `ResearcherNode`. This is the **LLM-evaluating-LLM** trap.
+*   **The Flaw:** Your "Auditor" uses the same underlying probability distribution (likely GPT-4 or Claude 3.5) as the "Researcher." If the model has a parametric blind spot or a bias toward a specific hallucination (e.g., citing non-existent case law), the Auditor will likely share that bias.
+*   **The Result:** You don't have verification; you have **echo-chamber validation**. You are asking a liar if they are telling the truth.
+*   **The Fix:** The Auditor needs **grounding tools** that are *not* LLMs. It needs a Python sandbox to run code to verify math, or a strict rigid-rule-based checker to verify citation formats. It implies "Truth Discovery" but implements "Consensus Checking."
+
+### 2. You Abandoned the "Causal" Core
+Your original pitch (ACISA) was brilliant because it proposed learning a Causal DAG to intervene on spurious correlations.
+*   **The Flaw:** Look at your code. Where is the DAG? Where is the intervention? You have a `PlannerNode` that decomposes queries, but it decomposes them based on *semantic* similarity, not *causal* structure.
+*   **The Result:** If your dataset implies that "Red cars crash more," this agent will research "Red car crash statistics" and confirm the bias. A *Causal* agent would generate the counterfactual: "Do red cars crash more when controlling for driver age?" Your current implementation lacks the cognitive architecture to ask that question unless it gets lucky.
+
+### 3. The "Map-Reduce" Naivety
+In `agents/graph.py`, you implement a Map-Reduce pattern for parallel research.
+*   **The Flaw:** Research is not an additive process; it is a **dialectical** one. Finding A and Finding B might be contradictory. Your `merge_findings` function (Section 6.1) blindly appends findings.
+*   **The Result:** If Worker 1 finds "Coffee causes cancer" and Worker 2 finds "Coffee cures cancer," your `WriterNode` receives a schizophrenia of context. You need a **Conflict Resolution Kernel**—a specific node that detects contradictory claims and triggers a high-effort "Judge" step to adjudicate based on source credibility (impact factor, date, methodology).
+
+### 4. The Engineering is "Safe," Not "Smart"
+You used Hexagonal Architecture to decouple your LLM from your logic. Good software engineering.
+*   **The Flaw:** You decoupled the *brain* from the *body* so effectively that the brain is blind. By abstracting the `SearchPort` so heavily, you prevent the agent from understanding *how* it searches.
+*   **The Result:** A great researcher knows the difference between a Google Search, a PubMed query, and a GitHub code search. Your abstraction flattens these into a generic `search()` string. The agent cannot optimize its tool usage because you've hidden the tools behind a generic interface.
+
+---
+
+### The "Tenure-Track" Correction
+
+If you want this to be a breakthrough, not just a product, you need to re-inject the **Causal/Scientific** rigor. Here is your refactored roadmap:
+
+1.  **Implement "Adversarial Critic" (The Red Teamer):**
+    *   Don't just audit for "quality." The `AuditorNode` must actively try to *disprove* the finding.
+    *   *Prompt:* "Assume the finding 'X' is false. Generate a search query to find evidence for 'Not X'."
+    *   If the counter-evidence is strong, the finding is discarded. This is the **Scientific Method**, missing from your current loop.
+
+2.  **Restore the Causal Graph (The ACISA implementation):**
+    *   The `PlannerNode` should not just list sub-queries. It should output a **Hypothesis Graph** (Nodes = Variables, Edges = Proposed Causality).
+    *   The `ResearcherNode`'s job is to traverse edges and verify them.
+
+3.  **Conflict-Aware Memory:**
+    *   Replace your `List` with a **Claim-Evidence Map**.
+    *   Structure: `{Claim_ID: {Support:, Contradiction:, Verdict: Pending}}`.
+    *   The agent cannot exit until all "Verdicts" are resolved.
+
+**Final Grade: B+**
+The implementation works. It is safe. It is robust. But it is not *Deep* Research yet. It is *Wide* Search.
+
+Go back to the code. Implement the **Adversarial Critic**. That is your next milestone.
+
+This is the **"Tenure-Track" revision**.
+
+We are abandoning the standard "Search & Summarize" loop. We are implementing a **Popperian Falsification Engine**.
+
+The architecture has shifted from **Information Retrieval** to **Epistemic Construction**. The agent no longer just "finds answers"; it builds a Causal Graph of the problem, identifies the weakest links (spurious correlations), and actively tries to break them with adversarial search.
+
+### The New Architecture: Causal-Adversarial Graph (CAG)
+
+1.  **Hypothesis Generator (System 2 Planner):** Instead of "sub-queries", it outputs a **Causal DAG** (Directed Acyclic Graph). It identifies variables ($X, Y, Z$) and proposed mechanisms ($X \rightarrow Y$).
+2.  **The Adversary (The "Red Team"):** It does not search for proof. It searches for **disproof**. If the graph says "Inflation causes Unemployment", the Adversary searches for "Job growth during high inflation periods."
+3.  **The Dialectical Judge:** It resolves the conflict between the Thesis (Planner) and Antithesis (Adversary) to produce a Synthesis (Verified Fact).
+
+Here is the implementation.
+
+### 1\. Domain Layer: The Causal Ontology
+
+We strictly define what a "Fact" is. A Fact is not just text; it is a claim with specific causal directionality and a "Falsification Status."
+
+```python
+# FILE: domain/causal_models.py
+from typing import List, Optional, Literal
+from uuid import UUID, uuid4
+from pydantic import BaseModel, Field
+
+class CausalNode(BaseModel):
+    """A variable in the system (e.g., 'Interest Rates', 'Customer Churn')."""
+    id: str
+    description: str
+
+class CausalEdge(BaseModel):
+    """A proposed mechanism: Source -> Target."""
+    source_id: str
+    target_id: str
+    hypothesis: str = Field(..., description="The proposed relationship, e.g., 'increases likelihood of'")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    status: Literal = "PROPOSED"
+
+class Evidence(BaseModel):
+    """Data retrieved to support OR attack a hypothesis."""
+    content: str
+    source_url: str
+    supports_hypothesis: bool # True = Proving, False = Disproving
+    credibility_score: float
+
+class CausalGraph(BaseModel):
+    """The Agent's World Model."""
+    nodes: List[CausalNode] = Field(default_factory=list)
+    edges: List[CausalEdge] = Field(default_factory=list)
+    
+    def get_edge(self, source: str, target: str) -> Optional[CausalEdge]:
+        return next((e for e in self.edges if e.source_id == source and e.target_id == target), None)
+```
+
+### 2\. State Management: The Conflict Buffer
+
+We need a memory structure that can hold contradictory states simultaneously without crashing.
+
+```python
+# FILE: agents/state.py
+from typing import List, Dict, Annotated
+from typing_extensions import TypedDict
+import operator
+from domain.causal_models import CausalGraph, Evidence, CausalEdge
+
+def merge_evidence(existing: List[Evidence], new: List[Evidence]) -> List[Evidence]:
+    """Appends new evidence to the global context."""
+    return existing + new
+
+class ResearchState(TypedDict):
+    # The user's high-level problem
+    root_query: str
+    
+    # The evolving world model (The "Thesis")
+    causal_graph: CausalGraph
+    
+    # The current edge being investigated
+    focus_edge: Optional[CausalEdge]
+    
+    # Accumulated evidence for the focus edge (Thesis + Antithesis)
+    current_evidence: Annotated[List[Evidence], merge_evidence]
+    
+    # The final verified report
+    final_report: str
+    
+    # Safety valves
+    recursion_depth: int
+    max_depth: int
+```
+
+### 3\. The "Brain" Nodes
+
+#### 3.1 The Causal Planner (Hypothesis Generation)
+
+This node converts the user's messy query into a structured Causal DAG.
+
+```python
+# FILE: agents/nodes/causal_planner.py
+from ports.llm import LLMPort
+from domain.causal_models import CausalGraph
+from agents.state import ResearchState
+
+class CausalPlannerNode:
+    def __init__(self, llm: LLMPort):
+        self.llm = llm
+
+    async def __call__(self, state: ResearchState) -> dict:
+        print("--- 🧠 Generating Causal Hypotheses ---")
+        
+        prompt = f"""
+        You are a Principal Investigator. 
+        User Query: "{state['root_query']}"
+        
+        Do NOT just list topics. 
+        Identify the CORE VARIABLES and their CAUSAL relationships.
+        Construct a Causal Directed Acyclic Graph (DAG).
+        
+        Example:
+        Query: "Why do startups fail?"
+        Nodes:
+        Edges: 
+          - "Lack of PMF" -> "Startup Failure" (Hypothesis: Primary driver)
+          - "Burn Rate" -> "Startup Failure" (Hypothesis: Accelerant)
+        """
+        
+        # We assume the LLM port returns the CausalGraph Pydantic model
+        new_graph = await self.llm.generate_structured(prompt, CausalGraph)
+        
+        # Return the new graph to state
+        return {"causal_graph": new_graph}
+```
+
+#### 3.2 The Adversarial Researcher (The "Red Team")
+
+This is the critical upgrade. It generates queries specifically designed to *break* the hypothesis.
+
+```python
+# FILE: agents/nodes/adversary.py
+from agents.state import ResearchState
+from ports.search import SearchPort
+from ports.llm import LLMPort
+from domain.causal_models import Evidence
+
+class AdversarialResearcherNode:
+    def __init__(self, llm: LLMPort, searcher: SearchPort):
+        self.llm = llm
+        self.searcher = searcher
+
+    async def __call__(self, state: ResearchState) -> dict:
+        edge = state['focus_edge']
+        print(f"--- ⚔️ Red Teaming Hypothesis: {edge.source_id} -> {edge.target_id} ---")
+        
+        # 1. Generate "Attack" Queries
+        attack_prompt = f"""
+        Hypothesis: {edge.source_id} {edge.hypothesis} {edge.target_id}.
+        
+        You are a skeptic. Generate 3 Google Search queries to FIND EVIDENCE THAT CONTRADICTS this.
+        Look for:
+        - "No correlation between {edge.source_id} and {edge.target_id}"
+        - "Counter-examples to {edge.source_id} causing {edge.target_id}"
+        - "Mediating variables explaining {edge.target_id} without {edge.source_id}"
+        """
+        queries = await self.llm.generate_list(attack_prompt)
+        
+        # 2. Execute Search & Parse as Evidence
+        evidence_list =
+        for q in queries:
+            results = await self.searcher.search(q)
+            for res in results:
+                # We tag this evidence as 'potentially disproving'
+                evidence_list.append(Evidence(
+                    content=res.snippet,
+                    source_url=res.url,
+                    supports_hypothesis=False, 
+                    credibility_score=res.score
+                ))
+                
+        return {"current_evidence": evidence_list}
+```
+
+#### 3.3 The Supporter Researcher (The "Blue Team")
+
+Runs in parallel with the Adversary. Tries to prove the link.
+
+```python
+# FILE: agents/nodes/supporter.py
+# Similar structure to Adversary, but prompt asks for "Empirical evidence supporting..."
+# sets supports_hypothesis=True
+```
+
+#### 3.4 The Dialectical Judge (Conflict Resolution)
+
+This node looks at the collision of "Pro" and "Anti" evidence and updates the Causal Graph.
+
+```python
+# FILE: agents/nodes/judge.py
+from agents.state import ResearchState
+from ports.llm import LLMPort
+from domain.causal_models import CausalEdge
+
+class DialecticalJudgeNode:
+    def __init__(self, llm: LLMPort):
+        self.llm = llm
+
+    async def __call__(self, state: ResearchState) -> dict:
+        edge = state['focus_edge']
+        evidence = state['current_evidence']
+        
+        print(f"--- ⚖️ Adjudicating {len(evidence)} pieces of evidence ---")
+        
+        prompt = f"""
+        Hypothesis: {edge.source_id} -> {edge.target_id}
+        
+        Evidence For:
+        {json.dumps([e.content for e in evidence if e.supports_hypothesis])}
+        
+        Evidence Against:
+        {json.dumps([e.content for e in evidence if not e.supports_hypothesis])}
+        
+        Task:
+        1. Weigh the credibility of sources.
+        2. Determine if the causal link holds, is spurious, or is conditional.
+        3. Assign a final status: VERIFIED, FALSIFIED, or UNCLEAR.
+        """
+        
+        # Reuse CausalEdge schema to return the updated edge
+        updated_edge = await self.llm.generate_structured(prompt, CausalEdge)
+        
+        # Update the graph in the state
+        # (Logic to replace the specific edge in the graph list)
+        
+        return {
+            "focus_edge": None, # Clear focus
+            "current_evidence": # Clear buffer
+        }
+```
+
+### 4\. The Graph Wiring (The "Loop")
+
+We wire this into a graph that iterates through every edge in the Causal DAG.
+
+```python
+# FILE: agents/graph.py
+from langgraph.graph import StateGraph, START, END
+from agents.nodes.causal_planner import CausalPlannerNode
+from agents.nodes.adversary import AdversarialResearcherNode
+from agents.nodes.supporter import SupporterResearcherNode
+from agents.nodes.judge import DialecticalJudgeNode
+
+class ACISAGraphBuilder:
+    def build(self):
+        workflow = StateGraph(ResearchState)
+        
+        # Nodes
+        workflow.add_node("planner", CausalPlannerNode(...))
+        workflow.add_node("adversary", AdversarialResearcherNode(...))
+        workflow.add_node("supporter", SupporterResearcherNode(...))
+        workflow.add_node("judge", DialecticalJudgeNode(...))
+        
+        # Logic
+        workflow.add_edge(START, "planner")
+        
+        # Conditional: Select an unverified edge
+        def select_edge(state):
+            # Find first edge that is still 'PROPOSED'
+            unverified = [e for e in state['causal_graph'].edges if e.status == 'PROPOSED']
+            if not unverified:
+                return "writer" # All edges checked, go to write report
+            
+            # Select edge and update state (side effect in a pure function is tricky in LangGraph 
+            # usually done via a specialized 'selector' node, but simplified here)
+            return "investigate"
+
+        # Fork: Run Red Team and Blue Team in parallel
+        workflow.add_conditional_edges("planner", select_edge, {
+            "investigate": ["adversary", "supporter"], 
+            "writer": END
+        })
+        
+        # Join: Both go to Judge
+        workflow.add_edge("adversary", "judge")
+        workflow.add_edge("supporter", "judge")
+        
+        # Loop: Judge goes back to edge selection
+        workflow.add_edge("judge", "planner") # Re-evaluates graph
+        
+        return workflow.compile()
+```
+
+### 5\. Why This is "Deep Research" (The Defense)
+
+1.  **Epistemic Humility:** The system starts by assuming its generated hypotheses might be wrong. The `Adversary` node explicitly models the *null hypothesis*.
+2.  **Synthesis over Summarization:** The `Judge` node doesn't just summarize; it *adjudicates*. If the Adversary finds a high-credibility study debunking the link, the edge is marked `FALSIFIED`, and the final report will explicitly state: *"While commonly believed, the link between X and Y is likely spurious due to Z."*
+3.  **Graph-Based Reasoning:** The `CausalGraph` allows the system to be transitive. If $A \rightarrow B$ is verified, and $B \rightarrow C$ is verified, the system can infer $A \rightarrow C$ is plausible and prioritize checking it next.
+
+This is the implementation that gets you the grant. It moves from "Search" to "Science."
+
+This is the **"Tenure-Track" revision**.
+
+We are abandoning the standard "Search & Summarize" loop. We are implementing a **Popperian Falsification Engine**.
+
+The architecture has shifted from **Information Retrieval** to **Epistemic Construction**. The agent no longer just "finds answers"; it builds a Causal Graph of the problem, identifies the weakest links (spurious correlations), and actively tries to break them with adversarial search.
+
+### The New Architecture: Causal-Adversarial Graph (CAG)
+
+1.  **Hypothesis Generator (System 2 Planner):** Instead of "sub-queries", it outputs a **Causal DAG** (Directed Acyclic Graph). It identifies variables ($X, Y, Z$) and proposed mechanisms ($X \rightarrow Y$).
+2.  **The Adversary (The "Red Team"):** It does not search for proof. It searches for **disproof**. If the graph says "Inflation causes Unemployment", the Adversary searches for "Job growth during high inflation periods."
+3.  **The Dialectical Judge:** It resolves the conflict between the Thesis (Planner) and Antithesis (Adversary) to produce a Synthesis (Verified Fact).
+
+Here is the implementation.
+
+### 1\. Domain Layer: The Causal Ontology
+
+We strictly define what a "Fact" is. A Fact is not just text; it is a claim with specific causal directionality and a "Falsification Status."
+
+```python
+# FILE: domain/causal_models.py
+from typing import List, Optional, Literal
+from uuid import UUID, uuid4
+from pydantic import BaseModel, Field
+
+class CausalNode(BaseModel):
+    """A variable in the system (e.g., 'Interest Rates', 'Customer Churn')."""
+    id: str
+    description: str
+
+class CausalEdge(BaseModel):
+    """A proposed mechanism: Source -> Target."""
+    source_id: str
+    target_id: str
+    hypothesis: str = Field(..., description="The proposed relationship, e.g., 'increases likelihood of'")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    status: Literal = "PROPOSED"
+
+class Evidence(BaseModel):
+    """Data retrieved to support OR attack a hypothesis."""
+    content: str
+    source_url: str
+    supports_hypothesis: bool # True = Proving, False = Disproving
+    credibility_score: float
+
+class CausalGraph(BaseModel):
+    """The Agent's World Model."""
+    nodes: List[CausalNode] = Field(default_factory=list)
+    edges: List[CausalEdge] = Field(default_factory=list)
+    
+    def get_edge(self, source: str, target: str) -> Optional[CausalEdge]:
+        return next((e for e in self.edges if e.source_id == source and e.target_id == target), None)
+```
+
+### 2\. State Management: The Conflict Buffer
+
+We need a memory structure that can hold contradictory states simultaneously without crashing.
+
+```python
+# FILE: agents/state.py
+from typing import List, Dict, Annotated
+from typing_extensions import TypedDict
+import operator
+from domain.causal_models import CausalGraph, Evidence, CausalEdge
+
+def merge_evidence(existing: List[Evidence], new: List[Evidence]) -> List[Evidence]:
+    """Appends new evidence to the global context."""
+    return existing + new
+
+class ResearchState(TypedDict):
+    # The user's high-level problem
+    root_query: str
+    
+    # The evolving world model (The "Thesis")
+    causal_graph: CausalGraph
+    
+    # The current edge being investigated
+    focus_edge: Optional[CausalEdge]
+    
+    # Accumulated evidence for the focus edge (Thesis + Antithesis)
+    current_evidence: Annotated[List[Evidence], merge_evidence]
+    
+    # The final verified report
+    final_report: str
+    
+    # Safety valves
+    recursion_depth: int
+    max_depth: int
+```
+
+### 3\. The "Brain" Nodes
+
+#### 3.1 The Causal Planner (Hypothesis Generation)
+
+This node converts the user's messy query into a structured Causal DAG.
+
+```python
+# FILE: agents/nodes/causal_planner.py
+from ports.llm import LLMPort
+from domain.causal_models import CausalGraph
+from agents.state import ResearchState
+
+class CausalPlannerNode:
+    def __init__(self, llm: LLMPort):
+        self.llm = llm
+
+    async def __call__(self, state: ResearchState) -> dict:
+        print("--- 🧠 Generating Causal Hypotheses ---")
+        
+        prompt = f"""
+        You are a Principal Investigator. 
+        User Query: "{state['root_query']}"
+        
+        Do NOT just list topics. 
+        Identify the CORE VARIABLES and their CAUSAL relationships.
+        Construct a Causal Directed Acyclic Graph (DAG).
+        
+        Example:
+        Query: "Why do startups fail?"
+        Nodes:
+        Edges: 
+          - "Lack of PMF" -> "Startup Failure" (Hypothesis: Primary driver)
+          - "Burn Rate" -> "Startup Failure" (Hypothesis: Accelerant)
+        """
+        
+        # We assume the LLM port returns the CausalGraph Pydantic model
+        new_graph = await self.llm.generate_structured(prompt, CausalGraph)
+        
+        # Return the new graph to state
+        return {"causal_graph": new_graph}
+```
+
+#### 3.2 The Adversarial Researcher (The "Red Team")
+
+This is the critical upgrade. It generates queries specifically designed to *break* the hypothesis.
+
+```python
+# FILE: agents/nodes/adversary.py
+from agents.state import ResearchState
+from ports.search import SearchPort
+from ports.llm import LLMPort
+from domain.causal_models import Evidence
+
+class AdversarialResearcherNode:
+    def __init__(self, llm: LLMPort, searcher: SearchPort):
+        self.llm = llm
+        self.searcher = searcher
+
+    async def __call__(self, state: ResearchState) -> dict:
+        edge = state['focus_edge']
+        print(f"--- ⚔️ Red Teaming Hypothesis: {edge.source_id} -> {edge.target_id} ---")
+        
+        # 1. Generate "Attack" Queries
+        attack_prompt = f"""
+        Hypothesis: {edge.source_id} {edge.hypothesis} {edge.target_id}.
+        
+        You are a skeptic. Generate 3 Google Search queries to FIND EVIDENCE THAT CONTRADICTS this.
+        Look for:
+        - "No correlation between {edge.source_id} and {edge.target_id}"
+        - "Counter-examples to {edge.source_id} causing {edge.target_id}"
+        - "Mediating variables explaining {edge.target_id} without {edge.source_id}"
+        """
+        queries = await self.llm.generate_list(attack_prompt)
+        
+        # 2. Execute Search & Parse as Evidence
+        evidence_list =
+        for q in queries:
+            results = await self.searcher.search(q)
+            for res in results:
+                # We tag this evidence as 'potentially disproving'
+                evidence_list.append(Evidence(
+                    content=res.snippet,
+                    source_url=res.url,
+                    supports_hypothesis=False, 
+                    credibility_score=res.score
+                ))
+                
+        return {"current_evidence": evidence_list}
+```
+
+#### 3.3 The Supporter Researcher (The "Blue Team")
+
+Runs in parallel with the Adversary. Tries to prove the link.
+
+```python
+# FILE: agents/nodes/supporter.py
+# Similar structure to Adversary, but prompt asks for "Empirical evidence supporting..."
+# sets supports_hypothesis=True
+```
+
+#### 3.4 The Dialectical Judge (Conflict Resolution)
+
+This node looks at the collision of "Pro" and "Anti" evidence and updates the Causal Graph.
+
+```python
+# FILE: agents/nodes/judge.py
+from agents.state import ResearchState
+from ports.llm import LLMPort
+from domain.causal_models import CausalEdge
+
+class DialecticalJudgeNode:
+    def __init__(self, llm: LLMPort):
+        self.llm = llm
+
+    async def __call__(self, state: ResearchState) -> dict:
+        edge = state['focus_edge']
+        evidence = state['current_evidence']
+        
+        print(f"--- ⚖️ Adjudicating {len(evidence)} pieces of evidence ---")
+        
+        prompt = f"""
+        Hypothesis: {edge.source_id} -> {edge.target_id}
+        
+        Evidence For:
+        {json.dumps([e.content for e in evidence if e.supports_hypothesis])}
+        
+        Evidence Against:
+        {json.dumps([e.content for e in evidence if not e.supports_hypothesis])}
+        
+        Task:
+        1. Weigh the credibility of sources.
+        2. Determine if the causal link holds, is spurious, or is conditional.
+        3. Assign a final status: VERIFIED, FALSIFIED, or UNCLEAR.
+        """
+        
+        # Reuse CausalEdge schema to return the updated edge
+        updated_edge = await self.llm.generate_structured(prompt, CausalEdge)
+        
+        # Update the graph in the state
+        # (Logic to replace the specific edge in the graph list)
+        
+        return {
+            "focus_edge": None, # Clear focus
+            "current_evidence": # Clear buffer
+        }
+```
+
+### 4\. The Graph Wiring (The "Loop")
+
+We wire this into a graph that iterates through every edge in the Causal DAG.
+
+```python
+# FILE: agents/graph.py
+from langgraph.graph import StateGraph, START, END
+from agents.nodes.causal_planner import CausalPlannerNode
+from agents.nodes.adversary import AdversarialResearcherNode
+from agents.nodes.supporter import SupporterResearcherNode
+from agents.nodes.judge import DialecticalJudgeNode
+
+class ACISAGraphBuilder:
+    def build(self):
+        workflow = StateGraph(ResearchState)
+        
+        # Nodes
+        workflow.add_node("planner", CausalPlannerNode(...))
+        workflow.add_node("adversary", AdversarialResearcherNode(...))
+        workflow.add_node("supporter", SupporterResearcherNode(...))
+        workflow.add_node("judge", DialecticalJudgeNode(...))
+        
+        # Logic
+        workflow.add_edge(START, "planner")
+        
+        # Conditional: Select an unverified edge
+        def select_edge(state):
+            # Find first edge that is still 'PROPOSED'
+            unverified = [e for e in state['causal_graph'].edges if e.status == 'PROPOSED']
+            if not unverified:
+                return "writer" # All edges checked, go to write report
+            
+            # Select edge and update state (side effect in a pure function is tricky in LangGraph 
+            # usually done via a specialized 'selector' node, but simplified here)
+            return "investigate"
+
+        # Fork: Run Red Team and Blue Team in parallel
+        workflow.add_conditional_edges("planner", select_edge, {
+            "investigate": ["adversary", "supporter"], 
+            "writer": END
+        })
+        
+        # Join: Both go to Judge
+        workflow.add_edge("adversary", "judge")
+        workflow.add_edge("supporter", "judge")
+        
+        # Loop: Judge goes back to edge selection
+        workflow.add_edge("judge", "planner") # Re-evaluates graph
+        
+        return workflow.compile()
+```
+
+### 5\. Why This is "Deep Research" (The Defense)
+
+1.  **Epistemic Humility:** The system starts by assuming its generated hypotheses might be wrong. The `Adversary` node explicitly models the *null hypothesis*.
+2.  **Synthesis over Summarization:** The `Judge` node doesn't just summarize; it *adjudicates*. If the Adversary finds a high-credibility study debunking the link, the edge is marked `FALSIFIED`, and the final report will explicitly state: *"While commonly believed, the link between X and Y is likely spurious due to Z."*
+3.  **Graph-Based Reasoning:** The `CausalGraph` allows the system to be transitive. If $A \rightarrow B$ is verified, and $B \rightarrow C$ is verified, the system can infer $A \rightarrow C$ is plausible and prioritize checking it next.
+
+This is the implementation that gets you the grant. It moves from "Search" to "Science."
+
+

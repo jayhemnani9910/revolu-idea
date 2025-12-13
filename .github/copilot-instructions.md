@@ -1,0 +1,27 @@
+# Copilot Instructions for CAG Deep Research System
+
+- **Purpose & entrypoint:** `main.py` runs the Causal-Adversarial Graph (CAG) workflow. It builds a LangGraph via `container.Container` + `ParallelCAGGraphBuilder` and streams events from `graph.astream` to stdout.
+- **Runtime commands:**
+  - Install deps: `pip install -r requirements.txt` (Python 3.11+, langgraph/pydantic v2).
+  - Configure `.env` (loaded by `config/settings.py`): `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `TEMPERATURE`, `MAX_TOKENS`, `TAVILY_API_KEY`, `MAX_RECURSION_DEPTH`, `OUTPUT_DIR`.
+  - Run research: `python main.py "your topic" [--model <ollama_model>]`. Without `TAVILY_API_KEY`, `Container.searcher` falls back to `adapters.mock_adapters.MockSearchAdapter`.
+  - Outputs: `adapters.local_storage.LocalStorageAdapter` writes JSON + Markdown reports to `output/reports/`, graphs + mermaid to `output/graphs/`, checkpoints to `output/checkpoints/`.
+- **Architecture (LangGraph nodes in `graph/cag_graph.py`):**
+  - Planner (`agents/nodes/causal_planner.py`) builds the initial `CausalGraph` from the query using `LLMPort.generate_structured(PlannerOutput)`.
+  - Auditor (`agents/nodes/auditor.py`) enforces safety: recursion depth (`max_depth`), loop detection (`action_hashes`), node visit ceilings, progress checks. Critical issues set `state["error"]` and route to `error_handler`.
+  - Edge Selector (`agents/nodes/edge_selector.py`) picks the next `CausalEdge` prioritizing `PROPOSED` / low `investigation_count` / `OUTCOME` targets; resets evidence buffers and sets `focus_edge`/`focus_edge_id`.
+  - Investigation (`_run_parallel_investigation`) runs Adversary + Supporter concurrently:
+    - Adversary (`agents/nodes/adversary.py`) generates attack queries (schema `AttackQueries`) and pulls `contradicting_evidence` via `SearchPort.search_academic` with fallback to `search`.
+    - Supporter (`agents/nodes/supporter.py`) mirrors this for supporting evidence.
+  - Judge (`agents/nodes/judge.py`) reconciles evidence, updates edge `status` (`VERIFIED`/`FALSIFIED`/`UNCLEAR`), `confidence`, `judge_reasoning`, and bumps `investigation_count`; returns to Auditor.
+  - Writer (`agents/nodes/writer.py`) synthesizes a `ResearchReport` using verified graph state; adds Methodology/Limitations sections; sets `final_report`.
+  - Error handler tries to produce a partial report if a graph exists.
+- **State model (`agents/state.py`):** `ResearchState` is a `TypedDict` with reducers for LangGraph merges (`merge_evidence`, `merge_audit_feedback`, `increment_counter`). Use `increment_node_visit` to track `node_visit_counts`; recursion depth increases in `_run_judge`. Use `audit_action` + `compute_action_hash` to avoid loops when adding new actions.
+- **Domain models (`domain/`):** `CausalGraph`/`CausalEdge` track DAG, statuses, evidence lists, investigation counts, and provide `get_verification_summary()` + mermaid export. `ResearchReport`/`ResearchSection`/`ResearchFinding` in `domain/models.py` handle report structure and Markdown rendering (`to_markdown`).
+- **Ports & adapters:** Implement new providers against `ports.llm.LLMPort`, `ports.search.SearchPort`, `ports.storage.StoragePort`. `adapters/ollama_adapter.py` hits `POST /api/generate` with retries (tenacity) and JSON-mode helpers (`generate_structured`, `generate_list`). `adapters/tavily_adapter.py` wraps Tavily client with `search`, `search_news`, `search_academic` and credibility scoring.
+- **Conventions when extending:**
+  - Node `__call__` should be `async`, accept `ResearchState`, and return a dict of state updates including `audit_feedback` entries for traceability.
+  - Maintain DAG invariants (`CausalGraph.is_dag()`); update edges via `graph.update_edge` and preserve `investigation_count`/`status` semantics (`EdgeSelector` skips resolved/over-investigated edges).
+  - Evidence must be `domain.models.Evidence` with a `Citation`; contradicting vs supporting is keyed off `supports_hypothesis`.
+  - Keep prompts/system messages close to nodes; structured outputs use Pydantic schemas defined alongside prompts.
+- **Quality hooks:** No formal tests present; prefer running a short end-to-end query after changes to ensure the graph loop completes and a report is saved. Monitor stdout for `[node]` logs and auditor warnings to catch regressions.
