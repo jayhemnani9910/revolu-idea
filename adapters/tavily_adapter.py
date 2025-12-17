@@ -1,4 +1,5 @@
 """Tavily search adapter implementation."""
+import asyncio
 from datetime import datetime
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -43,7 +44,8 @@ class TavilySearchAdapter(SearchPort):
         """Execute a search and return normalized Citation objects."""
         try:
             # Tavily's search method (sync, but we'll wrap it)
-            response = self.client.search(
+            response = await asyncio.to_thread(
+                self.client.search,
                 query=query,
                 search_depth=search_depth if search_depth in ("basic", "advanced") else "basic",
                 max_results=max_results,
@@ -87,7 +89,8 @@ class TavilySearchAdapter(SearchPort):
         """Search specifically for recent news articles."""
         try:
             # Tavily supports topic filtering
-            response = self.client.search(
+            response = await asyncio.to_thread(
+                self.client.search,
                 query=query,
                 search_depth="advanced",
                 max_results=max_results,
@@ -136,7 +139,8 @@ class TavilySearchAdapter(SearchPort):
             # Enhance query for academic focus
             academic_query = f"{query} site:arxiv.org OR site:pubmed.ncbi.nlm.nih.gov OR site:scholar.google.com OR site:semanticscholar.org"
 
-            response = self.client.search(
+            response = await asyncio.to_thread(
+                self.client.search,
                 query=academic_query,
                 search_depth="advanced",
                 max_results=max_results,

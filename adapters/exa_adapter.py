@@ -1,4 +1,5 @@
 """Exa (formerly Metaphor) search adapter implementation."""
+import asyncio
 from datetime import datetime, timedelta
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -44,7 +45,8 @@ class ExaSearchAdapter(SearchPort):
         try:
             # Exa supports different search types
             # Use neural search for semantic understanding
-            response = self.client.search_and_contents(
+            response = await asyncio.to_thread(
+                self.client.search_and_contents,
                 query=query,
                 num_results=max_results,
                 text={"max_characters": 1000},
@@ -90,7 +92,8 @@ class ExaSearchAdapter(SearchPort):
             end_date = datetime.now()
             start_date = end_date - timedelta(days=days_back)
 
-            response = self.client.search_and_contents(
+            response = await asyncio.to_thread(
+                self.client.search_and_contents,
                 query=query,
                 num_results=max_results,
                 text={"max_characters": 1000},
@@ -133,7 +136,8 @@ class ExaSearchAdapter(SearchPort):
         """Search academic/scholarly sources."""
         try:
             # Exa has category support for research papers
-            response = self.client.search_and_contents(
+            response = await asyncio.to_thread(
+                self.client.search_and_contents,
                 query=query,
                 num_results=max_results,
                 text={"max_characters": 1000},
@@ -177,7 +181,8 @@ class ExaSearchAdapter(SearchPort):
         Unique Exa capability for expanding research.
         """
         try:
-            response = self.client.find_similar_and_contents(
+            response = await asyncio.to_thread(
+                self.client.find_similar_and_contents,
                 url=url,
                 num_results=max_results,
                 text={"max_characters": 1000},

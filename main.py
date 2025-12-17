@@ -2,7 +2,12 @@
 """CAG Deep Research System - Ollama + Tavily"""
 import asyncio
 import argparse
+import warnings
 from datetime import datetime
+
+# Filter annoyance warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="duckduckgo_search")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="adapters.duckduckgo_adapter")
 
 from container import Container
 from agents.state import create_initial_state
@@ -20,7 +25,8 @@ async def run_research(query: str, container: Container) -> dict:
     graph = container.get_graph()
 
     final_state = None
-    async for event in graph.astream(initial_state):
+    # Increase recursion limit to handle deep research loops
+    async for event in graph.astream(initial_state, config={"recursion_limit": 100}):
         for node_name, updates in event.items():
             print(f"[{node_name}] completed")
             for msg in updates.get("audit_feedback", [])[-2:]:
@@ -35,7 +41,7 @@ async def run_research(query: str, container: Container) -> dict:
 async def main():
     parser = argparse.ArgumentParser(description="CAG Deep Research System")
     parser.add_argument("query", nargs="?", help="Research query")
-    parser.add_argument("--model", default=None, help="Ollama model to use")
+    parser.add_argument("--model", default=None, help="LLM model to use (API provider)")
     args = parser.parse_args()
 
     if not args.query:
@@ -46,7 +52,7 @@ async def main():
 
     container = Container()
     if args.model:
-        container.settings.ollama_model = args.model
+        container.settings.llm_model = args.model
 
     result = await run_research(args.query, container)
 

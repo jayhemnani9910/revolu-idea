@@ -1,9 +1,7 @@
 """Auditor Node - Safety valve and quality checks."""
 from typing import Any
-import hashlib
 
 from agents.state import ResearchState, compute_action_hash
-from domain.exceptions import MaxRecursionError, LoopDetectedError
 
 
 class AuditorNode:
@@ -54,9 +52,12 @@ class AuditorNode:
         issues = []
 
         # 1. Check recursion depth
-        depth_check = self._check_depth(state)
-        if depth_check:
-            issues.append(depth_check)
+        depth_msg = self._check_depth(state)
+        if depth_msg and "Max recursion depth" in depth_msg:
+            print(f"Auditor: {depth_msg}. Stopping research.")
+            return {"stop_reason": "max_depth", "audit_feedback": [depth_msg]}
+        if depth_msg:
+            issues.append(depth_msg)
 
         # 2. Check for loops
         loop_check = self._check_loops(state)
@@ -94,7 +95,7 @@ class AuditorNode:
         max_depth = state.get("max_depth", self.max_depth)
 
         if current_depth >= max_depth:
-            return f"CRITICAL: Max recursion depth reached ({current_depth}/{max_depth})"
+            return f"Max recursion depth reached ({current_depth}/{max_depth})"
 
         if current_depth >= max_depth - 1:
             return f"WARNING: Approaching max depth ({current_depth}/{max_depth})"
@@ -105,11 +106,19 @@ class AuditorNode:
         """Check for repeated actions (loop detection)."""
         # This would be called with current action context
         # For now, we check the state for any loop indicators
-        action_hashes = state.get("action_hashes", set())
+        action_hashes = state.get("action_hashes", {})
 
         # If we have many repeated patterns
         if len(action_hashes) > 50:
             return "WARNING: Large number of distinct actions, possible inefficiency"
+
+        if action_hashes:
+            worst_hash, worst_count = max(action_hashes.items(), key=lambda kv: kv[1])
+            if worst_count > self.max_same_action:
+                return (
+                    f"WARNING: Detected repeated action (hash {worst_hash}) "
+                    f"executed {worst_count} times"
+                )
 
         return None
 
@@ -147,7 +156,13 @@ class AuditorNode:
         return None
 
 
-def audit_action(state: ResearchState, action: str, params: dict) -> dict[str, Any]:
+def audit_action(
+    state: ResearchState,
+    action: str,
+    params: dict,
+    *,
+    max_repeats: int = 2,
+) -> dict[str, Any]:
     """
     Utility function to audit a specific action before execution.
 
@@ -160,25 +175,21 @@ def audit_action(state: ResearchState, action: str, params: dict) -> dict[str, A
         State updates (may include error to block action)
     """
     action_hash = compute_action_hash(action, params)
-    existing_hashes = state.get("action_hashes", set())
+    existing_hashes = state.get("action_hashes", {})
 
     # Check if this exact action was already done
-    if action_hash in existing_hashes:
-        # Count occurrences
-        hash_list = list(existing_hashes)
-        count = hash_list.count(action_hash) if isinstance(existing_hashes, list) else 1
+    seen_count = int(existing_hashes.get(action_hash, 0))
+    if seen_count >= max_repeats:
+        return {
+            "error": (
+                f"Loop detected: Action '{action}' with same params repeated "
+                f"{seen_count + 1} times"
+            ),
+            "audit_feedback": [f"BLOCKED: Repeated action '{action}'"],
+        }
 
-        if count >= 2:
-            return {
-                "error": f"Loop detected: Action '{action}' with same params repeated {count + 1} times",
-                "audit_feedback": [f"BLOCKED: Repeated action '{action}'"],
-            }
-
-    # Add new hash
-    new_hashes = existing_hashes.copy()
-    new_hashes.add(action_hash)
-
-    return {"action_hashes": new_hashes}
+    # Return delta update (merged by reducer).
+    return {"action_hashes": {action_hash: 1}}
 
 
 def increment_node_visit(state: ResearchState, node_name: str) -> dict[str, Any]:
@@ -192,7 +203,5 @@ def increment_node_visit(state: ResearchState, node_name: str) -> dict[str, Any]
     Returns:
         State updates with incremented visit count
     """
-    visit_counts = state.get("node_visit_counts", {}).copy()
-    visit_counts[node_name] = visit_counts.get(node_name, 0) + 1
-
-    return {"node_visit_counts": visit_counts}
+    # Return delta update (merged by reducer).
+    return {"node_visit_counts": {node_name: 1}}

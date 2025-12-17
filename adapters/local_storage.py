@@ -1,6 +1,5 @@
 """Local file storage adapter implementation."""
 import json
-import os
 from datetime import datetime
 from uuid import UUID
 from pathlib import Path
@@ -167,11 +166,11 @@ class LocalStorageAdapter(StoragePort):
             filename = f"{session_id}.json"
             filepath = self.checkpoints_path / filename
 
-            # Add timestamp to state
-            state["_checkpoint_time"] = datetime.now().isoformat()
+            payload = dict(state)
+            payload["_checkpoint_time"] = datetime.now().isoformat()
 
             with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(state, f, indent=2, default=str)
+                json.dump(payload, f, indent=2, default=str)
 
             return str(filepath)
 

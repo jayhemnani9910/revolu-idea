@@ -109,6 +109,111 @@ class MockLLMAdapter(LLMPort):
                 confidence=0.75,
                 judge_reasoning="Evidence supports causal link",
             )
+            
+        import re
+        
+        # Helper to extract topic
+        topic = "the topic"
+        match = re.search(r"QUERY: (.*?)(\n|$)", prompt)
+        if match:
+            topic = match.group(1).strip()
+        elif "startups" in prompt.lower():
+            topic = "startup failure"
+        elif "sky" in prompt.lower():
+            topic = "sky color"
+            
+        if schema.__name__ == "PlannerOutput":
+            # Create a mock planner output
+            if "startup" in topic.lower():
+                 return schema(
+                    research_goal=f"To understand the causal mechanisms of {topic}.",
+                    nodes=[
+                        {"id": "NoPMF", "label": "Lack of Product-Market Fit", "description": "Product does not satisfy market demand", "node_type": "VARIABLE"},
+                        {"id": "BurnRate", "label": "High Burn Rate", "description": "Spending capital too fast", "node_type": "MEDIATOR"},
+                        {"id": "TeamConflict", "label": "Team Conflict", "description": "Internal disputes", "node_type": "VARIABLE"},
+                        {"id": "Failure", "label": "Startup Failure", "description": "Business ceases operations", "node_type": "OUTCOME"},
+                    ],
+                    edges=[
+                        {"source_id": "NoPMF", "target_id": "BurnRate", "hypothesis": "accelerates"},
+                        {"source_id": "BurnRate", "target_id": "Failure", "hypothesis": "causes"},
+                        {"source_id": "TeamConflict", "target_id": "Failure", "hypothesis": "contributes to"},
+                    ],
+                    reasoning=f"The causal chain involves factors like PMF and burn rate leading to {topic}.",
+                )
+            
+            # Default generic DAG
+            return schema(
+                research_goal=f"To understand the causal mechanisms of {topic}.",
+                nodes=[
+                    {"id": "FactorA", "label": f"Factor A ({topic})", "description": "Primary driver", "node_type": "VARIABLE"},
+                    {"id": "FactorB", "label": "Factor B", "description": "Mediating variable", "node_type": "MEDIATOR"},
+                    {"id": "Outcome", "label": "Outcome", "description": "Final result", "node_type": "OUTCOME"},
+                ],
+                edges=[
+                    {"source_id": "FactorA", "target_id": "FactorB", "hypothesis": "influences"},
+                    {"source_id": "FactorB", "target_id": "Outcome", "hypothesis": "determines"},
+                ],
+                reasoning=f"Constructed a causal graph to analyze {topic}.",
+            )
+
+        if schema.__name__ == "ReportOutline":
+            if "startup" in topic.lower():
+                return schema(
+                    summary=f"This report confirms that high burn rates and lack of PMF are primary drivers of {topic}.",
+                    sections=[
+                        {
+                            "title": "Financial Factors", 
+                            "content": "Financial mismanagement is a key cause.", 
+                            "key_points": ["High Burn Rate causes Startup Failure", "NoPMF accelerates High Burn Rate"]
+                        },
+                        {
+                            "title": "Team Dynamics", 
+                            "content": "Internal conflict destabilizes the company.", 
+                            "key_points": ["Team Conflict contributes to Startup Failure"]
+                        }
+                    ],
+                    limitations=["This is a mock report."]
+                )
+            
+            return schema(
+                summary=f"This is a mock executive summary explaining the causal factors of {topic}.",
+                sections=[
+                    {
+                        "title": "Introduction", 
+                        "content": f"This report investigates {topic}.", 
+                        "key_points": [f"{topic} is complex", "Multiple factors involved"]
+                    },
+                    {
+                        "title": "Analysis", 
+                        "content": f"Analysis shows significant relationships in {topic}.", 
+                        "key_points": ["Verified causal links", "Evidence-based conclusion"]
+                    }
+                ],
+                limitations=["This is a mock report."]
+            )
+
+        if schema.__name__ == "AttackQueries":
+            return schema(
+                queries=[f"contradicting evidence for {topic}", f"counter examples {topic}"],
+                attack_strategy=f"Mock attack strategy focusing on counter-evidence for {topic}."
+            )
+
+        if schema.__name__ == "SupportQueries":
+            return schema(
+                queries=[f"supporting evidence for {topic}", f"proof of {topic}"],
+                search_strategy=f"Mock search strategy focusing on supporting evidence for {topic}."
+            )
+
+        if schema.__name__ == "JudgmentOutput":
+            # Randomize verdict for variety if needed, or stick to VERIFIED/UNCLEAR
+            return schema(
+                verdict="VERIFIED",
+                confidence=0.85,
+                reasoning="Mock judgment reasoning based on strong supporting evidence.",
+                key_supporting_points=["Point 1", "Point 2"],
+                key_contradicting_points=["Point 3"],
+                methodological_concerns=["None"]
+            )
 
         # Default: try to create instance with minimal data
         try:

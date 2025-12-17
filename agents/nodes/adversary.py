@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from ports.llm import LLMPort
 from ports.search import SearchPort
-from agents.state import ResearchState
+from agents.state import ResearchState, compute_action_hash
 from domain.models import Evidence
 
 
@@ -79,17 +79,35 @@ class AdversarialResearcherNode:
 
         # 2. Execute searches
         all_evidence = []
+        action_deltas: dict[str, int] = {}
+        action_counts = dict(state.get("action_hashes", {}) or {})
+        skipped_repeats = 0
         for query in attack_queries:
+            action_key = compute_action_hash(
+                "search",
+                {"edge_id": edge.id, "query": query},
+            )
+            if action_counts.get(action_key, 0) >= 2:
+                skipped_repeats += 1
+                continue
+            action_counts[action_key] = action_counts.get(action_key, 0) + 1
+            action_deltas[action_key] = action_deltas.get(action_key, 0) + 1
+
             evidence = await self._search_and_process(query, edge)
             all_evidence.extend(evidence)
 
         print(f"Found {len(all_evidence)} pieces of counter-evidence")
 
+        feedback = (
+            f"Adversary: Found {len(all_evidence)} counter-evidence for '{edge.source_id}->{edge.target_id}'"
+        )
+        if skipped_repeats:
+            feedback += f" (skipped {skipped_repeats} repeated query/edge searches)"
+
         return {
             "contradicting_evidence": all_evidence,
-            "audit_feedback": [
-                f"Adversary: Found {len(all_evidence)} counter-evidence for '{edge.source_id}->{edge.target_id}'"
-            ],
+            "action_hashes": action_deltas,
+            "audit_feedback": [feedback],
         }
 
     async def _generate_attack_queries(
@@ -145,12 +163,12 @@ Generate {self.max_queries} specific, searchable queries.
     ) -> list[Evidence]:
         """Execute search and convert to Evidence objects."""
         try:
-            # Use academic search for higher credibility
-            citations = await self.searcher.search_academic(query, max_results=3)
+            # Use general search first for broader coverage
+            citations = await self.searcher.search(query, max_results=3)
 
-            # Fall back to general search if no academic results
+            # Fall back to academic if needed (or if configured)
             if not citations:
-                citations = await self.searcher.search(query, max_results=3)
+                citations = await self.searcher.search_academic(query, max_results=3)
 
             evidence_list = []
             for citation in citations:

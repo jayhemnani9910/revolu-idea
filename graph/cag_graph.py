@@ -1,14 +1,14 @@
 """CAG (Causal-Adversarial Graph) workflow using LangGraph."""
-from typing import Literal
+import asyncio
 
 from langgraph.graph import StateGraph, START, END
-from langgraph.types import Send
+from langgraph.types import Command
 
 from ports.llm import LLMPort
 from ports.search import SearchPort
 from agents.state import ResearchState
 from agents.nodes.causal_planner import CausalPlannerNode
-from agents.nodes.edge_selector import EdgeSelectorNode, should_continue_investigating
+from agents.nodes.edge_selector import EdgeSelectorNode
 from agents.nodes.adversary import AdversarialResearcherNode
 from agents.nodes.supporter import SupporterResearcherNode
 from agents.nodes.judge import DialecticalJudgeNode
@@ -78,54 +78,21 @@ class CAGGraphBuilder:
         workflow.add_node("planner", self._run_planner)
         workflow.add_node("auditor", self._run_auditor)
         workflow.add_node("selector", self._run_selector)
-        workflow.add_node("adversary", self._run_adversary)
-        workflow.add_node("supporter", self._run_supporter)
+        workflow.add_node("investigate", self._run_parallel_investigation)
         workflow.add_node("judge", self._run_judge)
         workflow.add_node("writer", self._run_writer)
         workflow.add_node("error_handler", self._handle_error)
 
         # === Define Edges ===
-
-        # Start -> Planner
         workflow.add_edge(START, "planner")
-
-        # Planner -> Auditor (safety check)
         workflow.add_edge("planner", "auditor")
+        # NOTE: Avoid `add_conditional_edges` due to LangGraph 1.0.x hangs observed
+        # in some environments. Nodes return `Command(goto=...)` instead.
 
-        # Auditor -> Selector or Error
-        workflow.add_conditional_edges(
-            "auditor",
-            self._route_after_audit,
-            {
-                "continue": "selector",
-                "error": "error_handler",
-            },
-        )
+        workflow.add_edge("investigate", "judge")
 
-        # Selector -> Investigate or Synthesize
-        workflow.add_conditional_edges(
-            "selector",
-            self._route_after_selection,
-            {
-                "investigate": "adversary",  # Will also trigger supporter in parallel
-                "synthesize": "writer",
-                "error": "error_handler",
-            },
-        )
-
-        # Adversary -> Judge (waits for supporter via fan-in)
-        workflow.add_edge("adversary", "judge")
-
-        # Supporter -> Judge (parallel with adversary)
-        workflow.add_edge("supporter", "judge")
-
-        # Judge -> Auditor (loop back with safety check)
         workflow.add_edge("judge", "auditor")
-
-        # Writer -> END
         workflow.add_edge("writer", END)
-
-        # Error Handler -> END
         workflow.add_edge("error_handler", END)
 
         return workflow.compile()
@@ -142,14 +109,24 @@ class CAGGraphBuilder:
 
     async def _run_auditor(self, state: ResearchState) -> dict:
         """Run auditor."""
-        return await self.auditor(state)
+        result = await self.auditor(state)
+        if state.get("error") or result.get("error"):
+            return Command(update=result, goto="error_handler")
+        if result.get("stop_reason") == "max_depth":
+            print("--- Max depth reached, proceeding to synthesis ---")
+            return Command(update=result, goto="writer")
+        return Command(update=result, goto="selector")
 
     async def _run_selector(self, state: ResearchState) -> dict:
         """Run edge selector with tracking."""
         updates = increment_node_visit(state, "selector")
         result = await self.selector(state)
         result.update(updates)
-        return result
+        if result.get("error"):
+            return Command(update=result, goto="error_handler")
+        if result.get("focus_edge") is None:
+            return Command(update=result, goto="writer")
+        return Command(update=result, goto="investigate")
 
     async def _run_adversary(self, state: ResearchState) -> dict:
         """Run adversary with tracking."""
@@ -164,6 +141,57 @@ class CAGGraphBuilder:
         result = await self.supporter(state)
         result.update(updates)
         return result
+
+    async def _run_parallel_investigation(self, state: ResearchState) -> dict:
+        """Run adversary + supporter concurrently and merge their outputs."""
+        adversary_result, supporter_result = await asyncio.gather(
+            self._run_adversary(state),
+            self._run_supporter(state),
+        )
+
+        merged: dict = {
+            "contradicting_evidence": adversary_result.get("contradicting_evidence", []),
+            "supporting_evidence": supporter_result.get("supporting_evidence", []),
+            "audit_feedback": (
+                adversary_result.get("audit_feedback", [])
+                + supporter_result.get("audit_feedback", [])
+            ),
+        }
+
+        # Merge delta maps (reducers in ResearchState will apply them).
+        node_visit_counts: dict[str, int] = {}
+        for counts in (
+            adversary_result.get("node_visit_counts", {}) or {},
+            supporter_result.get("node_visit_counts", {}) or {},
+        ):
+            for key, value in counts.items():
+                node_visit_counts[key] = node_visit_counts.get(key, 0) + int(value)
+        if node_visit_counts:
+            merged["node_visit_counts"] = node_visit_counts
+
+        action_hashes: dict[str, int] = {}
+        for counts in (
+            adversary_result.get("action_hashes", {}) or {},
+            supporter_result.get("action_hashes", {}) or {},
+        ):
+            for key, value in counts.items():
+                action_hashes[key] = action_hashes.get(key, 0) + int(value)
+        if action_hashes:
+            merged["action_hashes"] = action_hashes
+
+        # Propagate errors (if any) from either side.
+        error_parts = [
+            part
+            for part in (
+                adversary_result.get("error"),
+                supporter_result.get("error"),
+            )
+            if part
+        ]
+        if error_parts:
+            merged["error"] = "; ".join(error_parts)
+
+        return merged
 
     async def _run_judge(self, state: ResearchState) -> dict:
         """Run judge with tracking and depth increment."""
@@ -196,134 +224,6 @@ class CAGGraphBuilder:
             "audit_feedback": [f"FATAL ERROR: {error}"],
         }
 
-    # === Routing Functions ===
-
-    def _route_after_audit(self, state: ResearchState) -> Literal["continue", "error"]:
-        """Route based on auditor results."""
-        if state.get("error"):
-            return "error"
-        return "continue"
-
-    def _route_after_selection(
-        self,
-        state: ResearchState,
-    ) -> Literal["investigate", "synthesize", "error"]:
-        """Route based on selector results."""
-        if state.get("error"):
-            return "error"
-
-        focus_edge = state.get("focus_edge")
-        if focus_edge is None:
-            # No more edges to investigate
-            return "synthesize"
-
-        return "investigate"
-
-
-def build_cag_graph(
-    llm: LLMPort,
-    searcher: SearchPort,
-    max_depth: int = 5,
-) -> StateGraph:
-    """
-    Convenience function to build the CAG graph.
-
-    Args:
-        llm: LLM port
-        searcher: Search port
-        max_depth: Maximum investigation cycles
-
-    Returns:
-        Compiled LangGraph workflow
-    """
-    builder = CAGGraphBuilder(llm, searcher, max_depth)
-    return builder.build()
-
-
-# === Alternative: Parallel Investigation Graph ===
-# This version uses Send API for true parallel execution of Red/Blue teams
-
 class ParallelCAGGraphBuilder(CAGGraphBuilder):
-    """
-    Alternative builder that uses LangGraph's Send API for
-    true parallel execution of Adversary and Supporter nodes.
-    """
-
-    def build(self) -> StateGraph:
-        """Build graph with parallel investigation."""
-        workflow = StateGraph(ResearchState)
-
-        # Add nodes
-        workflow.add_node("planner", self._run_planner)
-        workflow.add_node("auditor", self._run_auditor)
-        workflow.add_node("selector", self._run_selector)
-        workflow.add_node("investigate", self._run_parallel_investigation)
-        workflow.add_node("judge", self._run_judge)
-        workflow.add_node("writer", self._run_writer)
-        workflow.add_node("error_handler", self._handle_error)
-
-        # Edges
-        workflow.add_edge(START, "planner")
-        workflow.add_edge("planner", "auditor")
-
-        workflow.add_conditional_edges(
-            "auditor",
-            self._route_after_audit,
-            {"continue": "selector", "error": "error_handler"},
-        )
-
-        workflow.add_conditional_edges(
-            "selector",
-            self._route_after_selection,
-            {
-                "investigate": "investigate",
-                "synthesize": "writer",
-                "error": "error_handler",
-            },
-        )
-
-        workflow.add_edge("investigate", "judge")
-        workflow.add_edge("judge", "auditor")
-        workflow.add_edge("writer", END)
-        workflow.add_edge("error_handler", END)
-
-        return workflow.compile()
-
-    async def _run_parallel_investigation(self, state: ResearchState) -> dict:
-        """
-        Run both adversary and supporter, merge results.
-
-        Note: For true parallelism with Send API, you would use:
-        return [
-            Send("adversary", state),
-            Send("supporter", state),
-        ]
-
-        But this requires different graph structure. Here we simulate
-        by running both sequentially (still faster than sync).
-        """
-        import asyncio
-
-        # Run both concurrently
-        adversary_task = self._run_adversary(state)
-        supporter_task = self._run_supporter(state)
-
-        adversary_result, supporter_result = await asyncio.gather(
-            adversary_task, supporter_task
-        )
-
-        # Merge results
-        merged = {}
-        merged["contradicting_evidence"] = adversary_result.get("contradicting_evidence", [])
-        merged["supporting_evidence"] = supporter_result.get("supporting_evidence", [])
-        merged["audit_feedback"] = (
-            adversary_result.get("audit_feedback", []) +
-            supporter_result.get("audit_feedback", [])
-        )
-        merged["node_visit_counts"] = {
-            **state.get("node_visit_counts", {}),
-            **adversary_result.get("node_visit_counts", {}),
-            **supporter_result.get("node_visit_counts", {}),
-        }
-
-        return merged
+    """Backward-compatible alias for the default CAG graph builder."""
+    pass

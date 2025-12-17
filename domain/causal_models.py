@@ -71,11 +71,15 @@ class CausalEdge(BaseModel):
         return len(self.supporting_evidence) / total
 
     def add_evidence(self, evidence: Evidence) -> None:
-        """Add evidence to the appropriate list based on support flag."""
-        if evidence.supports_hypothesis:
-            self.supporting_evidence.append(evidence)
-        else:
-            self.contradicting_evidence.append(evidence)
+        """Add evidence to the appropriate list based on support flag, avoiding duplicates."""
+        target_list = self.supporting_evidence if evidence.supports_hypothesis else self.contradicting_evidence
+        
+        # Check for duplicates by ID or content
+        for existing in target_list:
+            if existing.id == evidence.id or existing.content == evidence.content:
+                return
+
+        target_list.append(evidence)
 
     def __hash__(self):
         return hash((self.source_id, self.target_id))
@@ -207,7 +211,7 @@ class CausalGraph(BaseModel):
             shape = {
                 "OUTCOME": f"(({node.label}))",
                 "CONFOUNDER": f"[/{node.label}/]",
-                "MEDIATOR": f"{{{{node.label}}}}",
+                "MEDIATOR": f"{{{{{node.label}}}}}",
             }.get(node.node_type, f"[{node.label}]")
             lines.append(f"    {node.id}{shape}")
 

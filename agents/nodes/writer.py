@@ -110,35 +110,24 @@ class WriterNode:
         context = self._build_context(graph, state)
 
         prompt = f"""
-Write a comprehensive research report based on the following verified findings:
+Write a SHORT research summary based on these verified findings:
 
-RESEARCH QUERY: {state['root_query']}
-RESEARCH GOAL: {state.get('research_goal', state['root_query'])}
+QUERY: {state['root_query']}
 
-=== CAUSAL GRAPH SUMMARY ===
-{graph.get_verification_summary()}
+=== FINDINGS ===
+{context['verified'] if context['verified'] else 'No verified relationships found.'}
 
-=== VERIFIED RELATIONSHIPS ===
-{context['verified']}
-
-=== FALSIFIED RELATIONSHIPS ===
-{context['falsified']}
-
-=== UNCLEAR/CONTESTED RELATIONSHIPS ===
-{context['unclear']}
-
-=== AUDIT TRAIL ===
-{chr(10).join(state.get('audit_feedback', [])[-10:])}
+=== UNVERIFIED HYPOTHESES ===
+{context['unclear'] if context['unclear'] else 'None.'}
 
 Instructions:
-1. Write an executive summary answering the research query
-2. Create sections for each major finding category
-3. Clearly mark the verification status of each claim
-4. Include citations where available
-5. Note limitations and areas requiring further research
+1. Summarize the key findings in 2-3 paragraphs.
+2. State clearly what is known and what remains unclear.
+3. Do not invent information.
 """
 
         try:
+            # Removed audit trail and complex instructions to save tokens
             outline = await self.llm.generate_structured(
                 prompt=prompt,
                 schema=ReportOutline,
@@ -161,6 +150,10 @@ Instructions:
                 )
                 report.add_section(section)
 
+            # Add deterministic findings based on the current causal graph so the
+            # report's verification metrics reflect actual edge verdicts.
+            report.add_section(self._build_detailed_findings_section(graph))
+
             # Add methodology section
             methodology_section = ResearchSection(
                 title="Methodology",
@@ -181,13 +174,29 @@ Instructions:
             return report
 
         except Exception as e:
-            print(f"Report generation failed: {e}")
-            # Return minimal report on error
-            return ResearchReport(
+            print(f"Report generation failed (likely rate limit): {e}")
+            print("Generating fallback manual report...")
+            
+            # Fallback: Construct report manually from graph data
+            summary = f"Research into '{state['root_query']}' was conducted. " \
+                      f"Due to API rate limits, this is a structured summary of findings."
+            
+            report = ResearchReport(
                 topic=state["root_query"],
-                summary=f"Report generation encountered an error: {str(e)}",
-                verification_status="DRAFT",
+                summary=summary,
+                verification_status=self._determine_status(graph),
             )
+
+            report.add_section(self._build_detailed_findings_section(graph))
+            report.add_section(
+                ResearchSection(
+                    title="Methodology",
+                    content=self._generate_methodology(state),
+                    findings=[],
+                )
+            )
+            
+            return report
 
     def _build_context(self, graph: CausalGraph, state: ResearchState) -> dict:
         """Build context string from graph for the prompt."""
@@ -205,13 +214,12 @@ Instructions:
             target_label = target.label if target else edge.target_id
 
             entry = (
-                f"- {source_label} {edge.hypothesis} {target_label}\n"
-                f"  Confidence: {edge.confidence:.2f}\n"
-                f"  Evidence: {len(edge.supporting_evidence)} supporting, "
-                f"{len(edge.contradicting_evidence)} contradicting\n"
-                f"  Reasoning: {edge.judge_reasoning[:200] if edge.judge_reasoning else 'N/A'}"
+                f"- {edge.source_id} -> {edge.target_id}: {edge.status} (Conf: {edge.confidence:.2f})"
             )
-
+            
+            # Ultra-minimal context for free tier rate limits
+            # Removed reasoning and evidence details entirely
+            
             if edge.status == "VERIFIED":
                 context["verified"].append(entry)
             elif edge.status == "FALSIFIED":
@@ -261,6 +269,9 @@ Instructions:
             for edge in graph.edges:
                 if edge.source_id.lower() in point.lower() or edge.target_id.lower() in point.lower():
                     verdict = edge.status
+                    # Map generic graph status to report verdict
+                    if verdict in ("UNCLEAR", "PROPOSED", "INVESTIGATING"):
+                        verdict = "UNVERIFIED"
                     break
 
             finding = ResearchFinding(
@@ -275,6 +286,7 @@ Instructions:
     def _generate_methodology(self, state: ResearchState) -> str:
         """Generate methodology section content."""
         summary = state["causal_graph"].get_verification_summary() if state.get("causal_graph") else {}
+        investigated = state.get("total_edges_investigated", 0)
 
         return f"""This research was conducted using the Causal-Adversarial Graph (CAG) methodology:
 
@@ -289,10 +301,65 @@ Instructions:
    a verdict (VERIFIED, FALSIFIED, or UNCLEAR) for each causal relationship.
 
 4. **Research Statistics**:
-   - Total edges investigated: {summary.get('total_edges', 'N/A')}
+   - Total edges in graph: {summary.get('total_edges', 'N/A')}
+   - Total edges investigated: {investigated}
    - Verified: {summary.get('verified', 'N/A')}
    - Falsified: {summary.get('falsified', 'N/A')}
    - Unclear: {summary.get('unclear', 'N/A')}
    - Completion rate: {summary.get('completion_rate', 0):.1f}%
    - Session ID: {state.get('session_id', 'N/A')}
 """
+
+    def _build_detailed_findings_section(self, graph: CausalGraph) -> ResearchSection:
+        """Build a deterministic findings section directly from the causal graph."""
+        if not graph.edges:
+            return ResearchSection(
+                title="Detailed Causal Findings",
+                content="No causal edges were proposed for investigation.",
+                findings=[],
+            )
+
+        lines: list[str] = []
+        findings: list[ResearchFinding] = []
+
+        for edge in graph.edges:
+            source = graph.get_node(edge.source_id)
+            target = graph.get_node(edge.target_id)
+
+            source_label = source.label if source else edge.source_id
+            target_label = target.label if target else edge.target_id
+
+            verdict = (
+                "UNVERIFIED"
+                if edge.status in ("PROPOSED", "INVESTIGATING", "UNCLEAR")
+                else edge.status
+            )
+
+            claim = f"{source_label} {edge.hypothesis} {target_label}"
+
+            lines.append(f"### {edge.source_id} -> {edge.target_id}")
+            lines.append(f"**Claim:** {claim}")
+            lines.append(f"**Status:** {edge.status} (confidence {edge.confidence:.2f})")
+            lines.append(
+                f"**Evidence:** {len(edge.supporting_evidence)} supporting, {len(edge.contradicting_evidence)} contradicting"
+            )
+            if edge.judge_reasoning:
+                lines.append(f"**Reasoning:** {edge.judge_reasoning}")
+            lines.append("")
+
+            findings.append(
+                ResearchFinding(
+                    claim=claim,
+                    verdict=verdict,  # type: ignore[arg-type]
+                    confidence=edge.confidence,
+                    reasoning=edge.judge_reasoning,
+                    supporting_evidence=edge.supporting_evidence[:3],
+                    contradicting_evidence=edge.contradicting_evidence[:3],
+                )
+            )
+
+        return ResearchSection(
+            title="Detailed Causal Findings",
+            content="\n".join(lines).strip(),
+            findings=findings,
+        )

@@ -128,27 +128,47 @@ Example format:
                 graph.add_node(node)
 
             # Add edges
+            skipped_edges: list[str] = []
+            cycle_edges: list[str] = []
             for edge_data in result.edges:
+                source_id = (edge_data.get("source_id") or "").strip()
+                target_id = (edge_data.get("target_id") or "").strip()
+                if not source_id or not target_id:
+                    skipped_edges.append(f"{source_id or '?'} -> {target_id or '?'} (missing ids)")
+                    continue
+                if not graph.get_node(source_id) or not graph.get_node(target_id):
+                    skipped_edges.append(f"{source_id} -> {target_id} (unknown node id)")
+                    continue
+
                 edge = CausalEdge(
-                    source_id=edge_data.get("source_id"),
-                    target_id=edge_data.get("target_id"),
+                    source_id=source_id,
+                    target_id=target_id,
                     hypothesis=edge_data.get("hypothesis", "influences"),
                     status="PROPOSED",
                 )
-                graph.add_edge(edge)
+                if graph.add_edge(edge):
+                    # Maintain DAG invariant by rejecting edges that introduce cycles.
+                    if not graph.is_dag():
+                        graph.edges.pop()
+                        cycle_edges.append(edge.edge_label)
 
-            # Validate DAG property
-            if not graph.is_dag():
-                print("Warning: Generated graph contains cycles. Attempting to fix...")
-                # Simple fix: remove last edge that creates cycle
-                # In production, implement proper cycle detection/removal
+            if cycle_edges:
+                print("Warning: Planner proposed cyclic edges; removed to preserve DAG.")
+            if skipped_edges:
+                print("Warning: Planner proposed invalid edges; skipped.")
 
             print(f"Created graph with {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+
+            extra_feedback: list[str] = []
+            if skipped_edges:
+                extra_feedback.append(f"Planner: Skipped {len(skipped_edges)} invalid edge(s)")
+            if cycle_edges:
+                extra_feedback.append(f"Planner: Removed {len(cycle_edges)} cyclic edge(s)")
 
             return {
                 "causal_graph": graph,
                 "research_goal": result.research_goal,
-                "audit_feedback": [f"Planner: Created DAG - {result.reasoning[:200]}"],
+                "audit_feedback": [f"Planner: Created DAG - {result.reasoning[:200]}"] + extra_feedback,
             }
 
         except Exception as e:
@@ -209,9 +229,14 @@ If graph is sufficient, return empty lists.
                     existing_graph.add_node(node)
 
             # Add any new edges
+            cycle_edges: list[str] = []
             for edge_data in result.edges:
-                source = edge_data.get("source_id")
-                target = edge_data.get("target_id")
+                source = (edge_data.get("source_id") or "").strip()
+                target = (edge_data.get("target_id") or "").strip()
+                if not source or not target:
+                    continue
+                if not existing_graph.get_node(source) or not existing_graph.get_node(target):
+                    continue
                 if not existing_graph.get_edge(source, target):
                     edge = CausalEdge(
                         source_id=source,
@@ -219,12 +244,20 @@ If graph is sufficient, return empty lists.
                         hypothesis=edge_data.get("hypothesis", "influences"),
                         status="PROPOSED",
                     )
-                    existing_graph.add_edge(edge)
+                    if existing_graph.add_edge(edge):
+                        if not existing_graph.is_dag():
+                            existing_graph.edges.pop()
+                            cycle_edges.append(edge.edge_label)
 
             return {
                 "causal_graph": existing_graph,
                 "research_goal": result.research_goal or state.get("research_goal"),
-                "audit_feedback": [f"Planner (enhance): {result.reasoning[:200]}"],
+                "audit_feedback": [f"Planner (enhance): {result.reasoning[:200]}"]
+                + (
+                    [f"Planner (enhance): Removed {len(cycle_edges)} cyclic edge(s)"]
+                    if cycle_edges
+                    else []
+                ),
             }
 
         except Exception as e:
