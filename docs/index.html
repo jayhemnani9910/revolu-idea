@@ -3,11 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CAG Deep Research System</title>
+    <title>Revolu Idea • CAG Deep Research</title>
     <meta
       name="description"
       content="AI-powered research automation using LangGraph orchestration, multi-source web search, and iterative verification."
     />
+    <meta property="og:title" content="Revolu Idea • CAG Deep Research" />
+    <meta
+      property="og:description"
+      content="A multi-agent deep research workflow that searches, verifies, and generates structured reports."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#0b1020" />
     <style>
       :root {
         color-scheme: dark;
@@ -19,6 +26,7 @@
         --muted-2: rgba(255, 255, 255, 0.55);
         --accent: #7c5cff;
         --accent-2: #33c3ff;
+        --good: #37d67a;
         --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
         --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
           "Courier New", monospace;
@@ -52,9 +60,10 @@
       }
 
       .container {
-        max-width: 1040px;
+        width: 80%;
+        max-width: 1600px;
         margin: 0 auto;
-        padding: 48px 20px 72px;
+        padding: 44px 0 72px;
       }
 
       .card {
@@ -62,6 +71,47 @@
         border: 1px solid var(--border);
         border-radius: 18px;
         box-shadow: var(--shadow);
+      }
+
+      @media (max-width: 720px) {
+        .container {
+          width: 92%;
+          padding: 28px 0 56px;
+        }
+      }
+
+      .bento {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 16px;
+        grid-auto-flow: dense;
+        align-items: start;
+      }
+
+      .tile {
+        padding: 22px 22px 20px;
+      }
+
+      .span-8 {
+        grid-column: span 8;
+      }
+
+      .span-4 {
+        grid-column: span 4;
+      }
+
+      .row-2 {
+        grid-row: span 2;
+      }
+
+      @media (max-width: 1050px) {
+        .span-8,
+        .span-4 {
+          grid-column: span 12;
+        }
+        .row-2 {
+          grid-row: auto;
+        }
       }
 
       .hero {
@@ -130,6 +180,7 @@
       }
 
       .btn {
+        appearance: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -140,6 +191,7 @@
         background: rgba(0, 0, 0, 0.2);
         color: var(--text);
         font-weight: 600;
+        cursor: pointer;
       }
 
       .btn:hover {
@@ -156,30 +208,6 @@
         filter: brightness(1.05);
       }
 
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(12, 1fr);
-        gap: 16px;
-        margin-top: 18px;
-      }
-
-      .col {
-        grid-column: span 12;
-      }
-
-      @media (min-width: 920px) {
-        .col.span-7 {
-          grid-column: span 7;
-        }
-        .col.span-5 {
-          grid-column: span 5;
-        }
-      }
-
-      .section {
-        padding: 22px 22px 20px;
-      }
-
       h2 {
         margin: 0 0 10px;
         font-size: 18px;
@@ -188,6 +216,10 @@
 
       p,
       li {
+        color: var(--muted);
+      }
+
+      .muted {
         color: var(--muted);
       }
 
@@ -234,11 +266,50 @@
         font-size: 12px;
       }
 
+      .urlBox {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.22);
+        margin-top: 10px;
+      }
+
+      .urlBox a {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.88);
+        text-decoration: none;
+        word-break: break-all;
+      }
+
+      .btn.small {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(55, 214, 122, 0.35);
+        background: rgba(55, 214, 122, 0.08);
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 12px;
+      }
+
       .footer {
-        margin-top: 18px;
+        grid-column: span 12;
+        margin-top: 2px;
         text-align: center;
         color: var(--muted-2);
         font-size: 12px;
+        padding: 8px 6px 0;
       }
 
       .note {
@@ -250,75 +321,137 @@
   </head>
   <body>
     <main class="container">
-      <header class="hero card">
-        <div class="kicker"><span class="dot"></span> Revolu Idea • GitHub Pages</div>
-        <h1>CAG Deep Research System</h1>
-        <p class="subtitle">
-          AI-powered research automation using LangGraph orchestration, multi-source web search, and
-          iterative verification loops to produce structured, cited reports.
-        </p>
+      <div class="bento">
+        <header class="hero card span-8 row-2" aria-label="Revolu Idea">
+          <div class="kicker"><span class="dot"></span> Revolu Idea • GitHub Pages</div>
+          <h1>CAG Deep Research</h1>
+          <p class="subtitle">
+            A multi-agent research workflow that searches the web, synthesizes findings, verifies
+            claims, and produces structured reports — built with LangGraph + a clean ports/adapters
+            architecture.
+          </p>
 
-        <div class="actions">
-          <a class="btn primary" href="https://github.com/jayhemnani9910/revolu-idea"
-            >View repo on GitHub</a
-          >
-          <a class="btn" href="#quickstart">Quick start</a>
-          <a class="btn" href="#workflow">Workflow</a>
-        </div>
+          <div class="actions" aria-label="Primary links">
+            <a class="btn primary" href="https://github.com/jayhemnani9910/revolu-idea">GitHub repo</a>
+            <a class="btn" href="#quickstart">Quick start</a>
+            <a class="btn" href="#pages">Enable Pages</a>
+          </div>
 
-        <div class="meta">
-          <span class="pill">Python 3.10+</span>
-          <span class="pill">LangGraph</span>
-          <span class="pill">LangChain</span>
-          <span class="pill">Tavily + Exa</span>
-        </div>
+          <div class="meta" aria-label="Tech tags">
+            <span class="pill">Python</span>
+            <span class="pill">LangGraph</span>
+            <span class="pill">LangChain</span>
+            <span class="pill">Tavily + Exa</span>
+            <span class="pill">Reports + audit loop</span>
+          </div>
 
-        <p class="note">
-          If you just enabled GitHub Pages and still see a 404, wait ~1–2 minutes and refresh.
-        </p>
-      </header>
+          <p class="note">
+            This is a CLI/backend project (not a web app). This page is just the shareable landing
+            link.
+          </p>
+        </header>
 
-      <div class="grid">
-        <section class="col span-7 card section" id="workflow">
-          <h2>What it does</h2>
-          <ul>
-            <li>Plans a research strategy for your question.</li>
-            <li>Searches the web across multiple providers (Tavily + Exa).</li>
-            <li>Extracts and synthesizes key information.</li>
-            <li>Builds a lightweight knowledge graph of entities and relationships.</li>
-            <li>Generates a structured report and runs audit-style verification passes.</li>
-          </ul>
+        <section class="card tile span-4" id="live">
+          <h2>Live link (share this)</h2>
+          <div class="badge">Live on GitHub Pages</div>
+          <div class="urlBox">
+            <a id="site-link" href="https://jayhemnani9910.github.io/revolu-idea/"
+              >https://jayhemnani9910.github.io/revolu-idea/</a>
+            <button class="btn small" id="copy-btn" type="button">Copy</button>
+          </div>
+          <p class="note">
+            If you just enabled Pages and see a 404, wait ~1–2 minutes and refresh.
+          </p>
         </section>
 
-        <section class="col span-5 card section" id="quickstart">
+        <section class="card tile span-4 row-2" id="quickstart">
           <h2>Quick start</h2>
-          <p>Clone, install, configure keys, run:</p>
+          <p class="muted">Clone, install, set keys, run:</p>
           <pre><code>git clone https://github.com/jayhemnani9910/revolu-idea.git
 cd revolu-idea
 python -m venv .venv &amp;&amp; source .venv/bin/activate
 pip install -r requirements.txt
 
-# set keys (examples)
 export TAVILY_API_KEY="your_key"
 export EXA_API_KEY="your_key"
 
 python main.py "What are the latest developments in quantum computing?"</code></pre>
+          <p class="note">No-key smoke run: <code>LLM_PROVIDER=mock SEARCH_PROVIDER=mock</code></p>
         </section>
 
-        <section class="col card section">
-          <h2>Outputs</h2>
-          <p>
-            Reports are written under <code>output/reports/</code> (gitignored). You can also find
-            checkpoints and graph artifacts in <code>output/</code>.
+        <section class="card tile span-4" id="what">
+          <h2>What it does</h2>
+          <ul>
+            <li>Plans a research strategy for your question.</li>
+            <li>Searches and gathers sources across multiple providers.</li>
+            <li>Extracts key claims and synthesizes findings.</li>
+            <li>Runs verification/audit loops to reduce hallucinations.</li>
+            <li>Writes Markdown reports under <code>output/reports/</code>.</li>
+          </ul>
+        </section>
+
+        <section class="card tile span-4" id="pages">
+          <h2>Enable GitHub Pages</h2>
+          <p class="muted">Repo → Settings → Pages:</p>
+          <ul>
+            <li>Source: <code>Deploy from a branch</code></li>
+            <li>Branch: <code>master</code></li>
+            <li>Folder: <code>/docs</code></li>
+          </ul>
+          <p class="note">
+            About <code>jayhemnani.me</code>: keep that for your personal site; use the URL above for
+            this project, or use a subdomain like <code>revolu.jayhemnani.me</code>.
           </p>
         </section>
-      </div>
 
-      <div class="footer">
-        Built by <a href="https://github.com/jayhemnani9910">jayhemnani9910</a> • Source available on
-        GitHub
+        <section class="card tile span-8" id="workflow">
+          <h2>Workflow (high level)</h2>
+          <pre><code>User question
+  → planner
+  → web search (Tavily + Exa)
+  → analysis + knowledge building
+  → report generation (Markdown)
+  → audit/verification loop
+  → final report</code></pre>
+          <p class="note">
+            Repo structure: <code>agents/</code>, <code>graph/</code>, <code>ports/</code>,
+            <code>adapters/</code>, <code>domain/</code>, <code>config/</code>.
+          </p>
+        </section>
+
+        <div class="footer">
+          Built by <a href="https://github.com/jayhemnani9910">jayhemnani9910</a> • Source on
+          <a href="https://github.com/jayhemnani9910/revolu-idea">GitHub</a>
+        </div>
       </div>
     </main>
+    <script>
+      (() => {
+        const url = new URL(window.location.href);
+        url.hash = "";
+        url.search = "";
+        url.pathname = url.pathname.replace(/index\.html$/, "");
+
+        const siteLink = document.getElementById("site-link");
+        if (siteLink) {
+          siteLink.href = url.toString();
+          siteLink.textContent = url.toString();
+        }
+
+        const copyBtn = document.getElementById("copy-btn");
+        if (copyBtn) {
+          copyBtn.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(url.toString());
+              copyBtn.textContent = "Copied";
+              window.setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
+            } catch {
+              copyBtn.textContent = "Copy failed";
+              window.setTimeout(() => (copyBtn.textContent = "Copy"), 1400);
+            }
+          });
+        }
+      })();
+    </script>
   </body>
 </html>
-
