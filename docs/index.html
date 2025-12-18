@@ -38,6 +38,10 @@
         box-sizing: border-box;
       }
 
+      html {
+        scroll-behavior: smooth;
+      }
+
       body {
         margin: 0;
         font-family: var(--sans);
@@ -73,6 +77,12 @@
         box-shadow: var(--shadow);
       }
 
+      @supports (backdrop-filter: blur(1px)) {
+        .card {
+          backdrop-filter: blur(14px);
+        }
+      }
+
       @media (max-width: 720px) {
         .container {
           width: 92%;
@@ -90,6 +100,50 @@
 
       .tile {
         padding: 22px 22px 20px;
+        position: relative;
+        overflow: hidden;
+        transition:
+          transform 180ms ease,
+          border-color 180ms ease,
+          box-shadow 180ms ease,
+          background-color 180ms ease;
+      }
+
+      .tile::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        background:
+          radial-gradient(
+            600px 260px at var(--mx, 30%) var(--my, 12%),
+            rgba(124, 92, 255, 0.22),
+            transparent 60%
+          ),
+          radial-gradient(
+            520px 240px at calc(var(--mx, 30%) + 22%) calc(var(--my, 12%) + 18%),
+            rgba(51, 195, 255, 0.16),
+            transparent 60%
+          );
+        opacity: 0;
+        transition: opacity 220ms ease;
+        pointer-events: none;
+      }
+
+      .tile > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .tile:hover {
+        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow:
+          0 28px 70px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(124, 92, 255, 0.1) inset;
+      }
+
+      .tile:hover::before {
+        opacity: 1;
       }
 
       .span-8 {
@@ -192,11 +246,21 @@
         color: var(--text);
         font-weight: 600;
         cursor: pointer;
+        transition:
+          transform 140ms ease,
+          filter 140ms ease,
+          border-color 140ms ease,
+          background-color 140ms ease;
       }
 
       .btn:hover {
         text-decoration: none;
         border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+      }
+
+      .btn:active {
+        transform: translateY(0px);
       }
 
       .btn.primary {
@@ -206,6 +270,12 @@
 
       .btn.primary:hover {
         filter: brightness(1.05);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid rgba(51, 195, 255, 0.7);
+        outline-offset: 3px;
       }
 
       h2 {
@@ -264,6 +334,18 @@
         background: rgba(0, 0, 0, 0.22);
         color: var(--muted-2);
         font-size: 12px;
+        transition:
+          transform 160ms ease,
+          border-color 160ms ease,
+          background-color 160ms ease,
+          color 160ms ease;
+      }
+
+      .pill:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.28);
+        color: rgba(255, 255, 255, 0.78);
       }
 
       .urlBox {
@@ -276,6 +358,16 @@
         border: 1px solid var(--border);
         background: rgba(0, 0, 0, 0.22);
         margin-top: 10px;
+        transition: border-color 160ms ease, background-color 160ms ease;
+      }
+
+      .urlBox:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.26);
+      }
+
+      .urlBox:focus-within {
+        border-color: rgba(51, 195, 255, 0.55);
       }
 
       .urlBox a {
@@ -316,6 +408,26 @@
         margin-top: 10px;
         color: var(--muted-2);
         font-size: 12px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        .tile,
+        .tile::before,
+        .btn,
+        .pill,
+        .urlBox {
+          transition: none !important;
+        }
+
+        .tile:hover,
+        .btn:hover,
+        .pill:hover {
+          transform: none !important;
+        }
       }
     </style>
   </head>
@@ -449,6 +561,24 @@ python main.py "What are the latest developments in quantum computing?"</code></
               copyBtn.textContent = "Copy failed";
               window.setTimeout(() => (copyBtn.textContent = "Copy"), 1400);
             }
+          });
+        }
+
+        const finePointer = window.matchMedia && window.matchMedia("(pointer: fine)").matches;
+        if (!finePointer) return;
+
+        for (const tile of document.querySelectorAll(".tile")) {
+          tile.addEventListener("mousemove", (e) => {
+            const rect = tile.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            tile.style.setProperty("--mx", `${x}%`);
+            tile.style.setProperty("--my", `${y}%`);
+          });
+
+          tile.addEventListener("mouseleave", () => {
+            tile.style.removeProperty("--mx");
+            tile.style.removeProperty("--my");
           });
         }
       })();
