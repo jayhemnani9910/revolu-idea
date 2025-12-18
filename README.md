@@ -6,6 +6,18 @@ AI-powered research automation using LangGraph orchestration, multiple search en
 ![LangGraph](https://img.shields.io/badge/LangGraph-orchestration-purple)
 ![LangChain](https://img.shields.io/badge/LangChain-LLM-green)
 
+## Live link (GitHub Pages)
+
+Once enabled in the repo settings, the site will be available at:
+
+- https://jayhemnani9910.github.io/revolu-idea/
+
+Enable it via **Settings → Pages**:
+
+- Source: **Deploy from a branch**
+- Branch: `master`
+- Folder: `/docs`
+
 ## Overview
 
 CAG (Causal Analysis Graph) Deep Research is a sophisticated research automation platform that combines multiple AI agents, search engines, and verification loops to produce comprehensive, fact-checked research reports. Unlike simple Q&A systems, CAG performs iterative deep research with automatic quality assessment and knowledge graph construction.
@@ -116,4 +128,4 @@ Reports saved to `output/reports/` include:
 
 ## License
 
-MIT
+[MIT License](LICENSE)
