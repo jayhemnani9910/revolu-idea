@@ -1,0 +1,58 @@
+{
+  "demo": true,
+  "topic": "Impact of remote work on productivity (demo)",
+  "created_at": "2025-12-18T00:00:00Z",
+  "methodology": "Demo-only sample output (CAG structure preview)",
+  "verification_status": "DRAFT",
+  "total_findings": 4,
+  "verified_percentage": 50.0,
+  "sections": [
+    {
+      "title": "Summary",
+      "content": "This demo shows the shape of a typical CAG output: summary, sections, and verdict-tagged findings.",
+      "findings": []
+    },
+    {
+      "title": "Background",
+      "content": "Remote work can change communication, focus time, and access to talent. A real run would attach citations to each claim.",
+      "findings": [
+        {
+          "verdict": "VERIFIED",
+          "confidence": 0.74,
+          "claim": "Productivity impact is not uniform; it varies by role, tooling, and meeting load."
+        },
+        {
+          "verdict": "CONTESTED",
+          "confidence": 0.45,
+          "claim": "Fully remote always increases productivity compared to hybrid arrangements."
+        }
+      ]
+    },
+    {
+      "title": "Operational takeaways",
+      "content": "Actionable recommendations derived from verified findings.",
+      "findings": [
+        {
+          "verdict": "VERIFIED",
+          "confidence": 0.7,
+          "claim": "Strong async practices reduce coordination overhead for distributed teams."
+        },
+        {
+          "verdict": "UNVERIFIED",
+          "confidence": 0.2,
+          "claim": "A single policy works well for every team without exceptions."
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "title": "Example Source A",
+      "url": "https://example.com/source-a"
+    },
+    {
+      "title": "Example Source B",
+      "url": "https://example.com/source-b"
+    }
+  ]
+}

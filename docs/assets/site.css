@@ -1,0 +1,538 @@
+      :root {
+        color-scheme: dark;
+        --bg: #0b1020;
+        --card: rgba(255, 255, 255, 0.06);
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.7);
+        --muted-2: rgba(255, 255, 255, 0.55);
+        --accent: #7c5cff;
+        --accent-2: #33c3ff;
+        --good: #37d67a;
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+          "Apple Color Emoji", "Segoe UI Emoji";
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        color: var(--text);
+        background:
+          radial-gradient(1200px 900px at 15% 5%, rgba(124, 92, 255, 0.28), transparent 55%),
+          radial-gradient(900px 800px at 85% 10%, rgba(51, 195, 255, 0.22), transparent 55%),
+          radial-gradient(700px 700px at 50% 90%, rgba(255, 255, 255, 0.06), transparent 60%),
+          var(--bg);
+        line-height: 1.55;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .container {
+        width: 80%;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 44px 0 72px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+      }
+
+      @supports (backdrop-filter: blur(1px)) {
+        .card {
+          backdrop-filter: blur(14px);
+        }
+      }
+
+      @media (max-width: 720px) {
+        .container {
+          width: 92%;
+          padding: 28px 0 56px;
+        }
+      }
+
+      .bento {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 16px;
+        grid-auto-flow: dense;
+        align-items: start;
+      }
+
+      .tile {
+        padding: 22px 22px 20px;
+        position: relative;
+        overflow: hidden;
+        transition:
+          transform 180ms ease,
+          border-color 180ms ease,
+          box-shadow 180ms ease,
+          background-color 180ms ease;
+      }
+
+      .tile::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        background:
+          radial-gradient(
+            600px 260px at var(--mx, 30%) var(--my, 12%),
+            rgba(124, 92, 255, 0.22),
+            transparent 60%
+          ),
+          radial-gradient(
+            520px 240px at calc(var(--mx, 30%) + 22%) calc(var(--my, 12%) + 18%),
+            rgba(51, 195, 255, 0.16),
+            transparent 60%
+          );
+        opacity: 0;
+        transition: opacity 220ms ease;
+        pointer-events: none;
+      }
+
+      .tile > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .tile:hover {
+        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow:
+          0 28px 70px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(124, 92, 255, 0.1) inset;
+      }
+
+      .tile:hover::before {
+        opacity: 1;
+      }
+
+      .span-8 {
+        grid-column: span 8;
+      }
+
+      .span-4 {
+        grid-column: span 4;
+      }
+
+      .row-2 {
+        grid-row: span 2;
+      }
+
+      @media (max-width: 1050px) {
+        .span-8,
+        .span-4 {
+          grid-column: span 12;
+        }
+        .row-2 {
+          grid-row: auto;
+        }
+      }
+
+      .hero {
+        padding: 28px 28px 26px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        background:
+          radial-gradient(700px 260px at 30% 20%, rgba(124, 92, 255, 0.35), transparent 60%),
+          radial-gradient(520px 260px at 78% 30%, rgba(51, 195, 255, 0.28), transparent 60%);
+        filter: blur(16px);
+        opacity: 0.9;
+        pointer-events: none;
+      }
+
+      .hero > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--muted);
+        font-size: 13px;
+        letter-spacing: 0.03em;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.18);
+      }
+
+      h1 {
+        margin: 14px 0 8px;
+        font-size: clamp(28px, 3.4vw, 44px);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 16px;
+        max-width: 70ch;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .btn {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.2);
+        color: var(--text);
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          transform 140ms ease,
+          filter 140ms ease,
+          border-color 140ms ease,
+          background-color 140ms ease;
+      }
+
+      .btn:hover {
+        text-decoration: none;
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+      }
+
+      .btn:active {
+        transform: translateY(0px);
+      }
+
+      .btn.primary {
+        background: linear-gradient(135deg, rgba(124, 92, 255, 0.95), rgba(51, 195, 255, 0.85));
+        border-color: transparent;
+      }
+
+      .btn.primary:hover {
+        filter: brightness(1.05);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid rgba(51, 195, 255, 0.7);
+        outline-offset: 3px;
+      }
+
+      h2 {
+        margin: 0 0 10px;
+        font-size: 18px;
+        letter-spacing: -0.01em;
+      }
+
+      p,
+      li {
+        color: var(--muted);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code,
+      pre {
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      pre {
+        margin: 12px 0 0;
+        padding: 14px 14px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.25);
+        overflow: auto;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.22);
+        color: var(--muted-2);
+        font-size: 12px;
+        transition:
+          transform 160ms ease,
+          border-color 160ms ease,
+          background-color 160ms ease,
+          color 160ms ease;
+      }
+
+      .pill:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.28);
+        color: rgba(255, 255, 255, 0.78);
+      }
+
+      .urlBox {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.22);
+        margin-top: 10px;
+        transition: border-color 160ms ease, background-color 160ms ease;
+      }
+
+      .urlBox:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.26);
+      }
+
+      .urlBox:focus-within {
+        border-color: rgba(51, 195, 255, 0.55);
+      }
+
+      .urlBox a {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.88);
+        text-decoration: none;
+        word-break: break-all;
+      }
+
+      .btn.small {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(55, 214, 122, 0.35);
+        background: rgba(55, 214, 122, 0.08);
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 12px;
+      }
+
+      .fieldRow {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      .textInput {
+        flex: 1 1 260px;
+        min-width: 240px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.22);
+        color: var(--text);
+        font-size: 14px;
+        outline: none;
+        transition: border-color 160ms ease, background-color 160ms ease;
+      }
+
+      .textInput::placeholder {
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .textInput:focus {
+        border-color: rgba(51, 195, 255, 0.55);
+        background: rgba(0, 0, 0, 0.26);
+      }
+
+      .demoSteps {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .stepRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .stepLabel {
+        color: rgba(255, 255, 255, 0.88);
+        font-weight: 600;
+      }
+
+      .stepStatus {
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.22);
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .stepStatus.running {
+        border-color: rgba(51, 195, 255, 0.4);
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .stepStatus.done {
+        border-color: rgba(55, 214, 122, 0.4);
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .stepStatus.error {
+        border-color: rgba(255, 99, 99, 0.45);
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      details {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+      }
+
+      details summary {
+        cursor: pointer;
+        padding: 10px 12px;
+        color: rgba(255, 255, 255, 0.88);
+        font-weight: 600;
+        user-select: none;
+      }
+
+      details summary:hover {
+        background: rgba(0, 0, 0, 0.12);
+      }
+
+      details > *:not(summary) {
+        padding: 0 12px 12px;
+      }
+
+      .outputBox {
+        max-height: 320px;
+      }
+
+      .mermaid {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.18);
+        overflow: auto;
+        font-family: var(--mono);
+        font-size: 13px;
+        white-space: pre;
+      }
+
+      .mermaid svg {
+        max-width: 100%;
+        height: auto;
+      }
+
+      .footer {
+        grid-column: span 12;
+        margin-top: 2px;
+        text-align: center;
+        color: var(--muted-2);
+        font-size: 12px;
+        padding: 8px 6px 0;
+      }
+
+      .note {
+        margin-top: 10px;
+        color: var(--muted-2);
+        font-size: 12px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        .tile,
+        .tile::before,
+        .btn,
+        .pill,
+        .urlBox {
+          transition: none !important;
+        }
+
+        .tile:hover,
+        .btn:hover,
+        .pill:hover {
+          transform: none !important;
+        }
+      }
+    

@@ -1,1 +1,257 @@
-...
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Revolu Idea • CAG Deep Research</title>
+    <meta
+      name="description"
+      content="AI-powered research automation using LangGraph orchestration, multi-source web search, and iterative verification."
+    />
+    <meta property="og:title" content="Revolu Idea • CAG Deep Research" />
+    <meta
+      property="og:description"
+      content="A multi-agent deep research workflow that searches, verifies, and generates structured reports."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#0b1020" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <main class="container">
+      <div class="bento">
+        <header class="hero card span-8 row-2" aria-label="Revolu Idea">
+          <div class="kicker"><span class="dot"></span> Revolu Idea • GitHub Pages</div>
+          <h1>CAG Deep Research</h1>
+          <p class="subtitle">
+            A multi-agent research workflow that searches the web, synthesizes findings, verifies
+            claims, and produces structured reports — built with LangGraph + a clean ports/adapters
+            architecture.
+          </p>
+
+          <div class="actions" aria-label="Primary links">
+            <a class="btn primary" href="https://github.com/jayhemnani9910/revolu-idea">GitHub repo</a>
+            <a class="btn" href="#demo">Demo</a>
+            <a class="btn" href="#quickstart">Quick start</a>
+            <a class="btn" href="#repo">Repo tour</a>
+            <a class="btn" href="#workflow">How it works</a>
+          </div>
+
+          <div class="meta" aria-label="Tech tags">
+            <span class="pill">Python</span>
+            <span class="pill">LangGraph</span>
+            <span class="pill">LangChain</span>
+            <span class="pill">Tavily / Exa / DDG</span>
+            <span class="pill">Reports + audit loop</span>
+          </div>
+
+          <p class="note">
+            This is a CLI/backend project (not a web app). This page is just the shareable landing
+            link.
+          </p>
+        </header>
+
+        <section class="card tile span-4" id="live">
+          <h2>Live link (share this)</h2>
+          <div class="badge">Live on GitHub Pages</div>
+          <div class="urlBox">
+            <a id="site-link" href="https://jayhemnani9910.github.io/revolu-idea/"
+              >https://jayhemnani9910.github.io/revolu-idea/</a>
+            <button class="btn small" id="copy-btn" type="button">Copy</button>
+          </div>
+          <p class="note">
+            If you just enabled Pages and see a 404, wait ~1–2 minutes and refresh.
+          </p>
+        </section>
+
+        <section class="card tile span-4 row-2" id="quickstart">
+          <h2>Quick start</h2>
+          <p class="muted">Clone, install, configure <code>.env</code>, run:</p>
+          <pre><code>git clone https://github.com/jayhemnani9910/revolu-idea.git
+cd revolu-idea
+python -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r requirements.txt
+
+# copy template, then edit keys
+cp .env.example .env
+
+python main.py "What are the latest developments in quantum computing?"</code></pre>
+          <p class="note">No-key smoke run: <code>LLM_PROVIDER=mock SEARCH_PROVIDER=mock</code></p>
+        </section>
+
+        <section class="card tile span-8 row-2" id="demo">
+          <h2>Working demo (simulated)</h2>
+          <p class="muted">
+            This demo runs entirely in your browser using prebuilt sample artifacts (no API calls).
+            It previews what a real CLI run produces.
+          </p>
+
+          <div class="fieldRow" aria-label="Demo controls">
+            <input
+              class="textInput"
+              id="demo-query"
+              list="demo-topics"
+              placeholder='Try: "Impact of remote work on productivity"'
+              value="Impact of remote work on productivity"
+            />
+            <datalist id="demo-topics">
+              <option value="Impact of remote work on productivity"></option>
+              <option value="How AI regulation affects startups"></option>
+              <option value="EV adoption and power grid demand"></option>
+              <option value="Trends in quantum computing research"></option>
+            </datalist>
+
+            <button class="btn primary" id="demo-run" type="button">Run demo</button>
+            <button class="btn" id="demo-stop" type="button">Stop</button>
+          </div>
+
+          <div class="demoSteps" id="demo-steps" aria-label="Demo progress"></div>
+
+          <details open>
+            <summary>Console output</summary>
+            <pre class="outputBox"><code id="demo-log">Click “Run demo” to simulate a run…</code></pre>
+          </details>
+
+          <details open>
+            <summary>Report preview</summary>
+            <div class="actions" aria-label="Demo artifacts">
+              <a class="btn small" href="demo/demo_report.md">Open demo report (MD)</a>
+              <a class="btn small" href="demo/demo_report.json">Open demo report (JSON)</a>
+              <a class="btn small" href="demo/demo_graph.mmd">Open demo graph (Mermaid)</a>
+            </div>
+            <pre class="outputBox"><code id="demo-report">The preview will appear here.</code></pre>
+          </details>
+
+          <p class="note">
+            Real run: <code>python main.py "your topic"</code> (requires configuring <code>.env</code>).
+          </p>
+        </section>
+
+        <section class="card tile span-4" id="features">
+          <h2>Key features</h2>
+          <ul>
+            <li>LangGraph multi-agent orchestration (planner → search → analyze → report → audit).</li>
+            <li>Multi-provider web search (Tavily, Exa, DuckDuckGo + Wikipedia fallback).</li>
+            <li>Adversarial-style verification loop to reduce hallucinations.</li>
+            <li>Knowledge graph building (entities + relationships) as research proceeds.</li>
+            <li>Ports/adapters design so providers can be swapped without touching the core flow.</li>
+          </ul>
+        </section>
+
+        <section class="card tile span-4" id="repo">
+          <h2>Repo tour</h2>
+          <ul>
+            <li><code>main.py</code> — CLI entrypoint (runs the research graph).</li>
+            <li><code>container.py</code> — provider wiring (LLM/Search/Storage).</li>
+            <li><code>graph/</code> — LangGraph workflow construction.</li>
+            <li><code>agents/</code> — graph nodes + shared state.</li>
+            <li><code>ports/</code> + <code>adapters/</code> — interfaces + implementations.</li>
+            <li><code>domain/</code> — core models (citations, evidence, reports, graphs).</li>
+          </ul>
+          <p class="note">
+            Browse code:
+            <a href="https://github.com/jayhemnani9910/revolu-idea/tree/master">repo tree</a>
+          </p>
+        </section>
+
+        <section class="card tile span-4" id="config">
+          <h2>Configuration</h2>
+          <p class="muted">Settings load from <code>.env</code> (gitignored). Start with:</p>
+          <pre><code>cp .env.example .env</code></pre>
+          <p class="muted">Core env vars:</p>
+          <ul>
+            <li><code>LLM_PROVIDER</code>, <code>LLM_BASE_URL</code>, <code>LLM_MODEL</code>, <code>LLM_API_KEY</code></li>
+            <li><code>SEARCH_PROVIDER</code> (+ <code>TAVILY_API_KEY</code> or <code>EXA_API_KEY</code> if used)</li>
+            <li><code>MAX_RECURSION_DEPTH</code>, <code>MAX_INVESTIGATIONS_PER_EDGE</code></li>
+            <li><code>OUTPUT_DIR</code></li>
+          </ul>
+        </section>
+
+        <section class="card tile span-4" id="outputs">
+          <h2>Outputs</h2>
+          <p class="muted">Artifacts are written under <code>output/</code>:</p>
+          <ul>
+            <li><code>output/reports/*.md</code> + <code>*.json</code> — final report</li>
+            <li><code>output/graphs/*.mmd</code> + <code>*.json</code> — causal graph + Mermaid</li>
+            <li><code>output/checkpoints/*.json</code> — saved state for runs</li>
+          </ul>
+          <p class="note">The report includes citations, findings, and verification status.</p>
+        </section>
+
+        <section class="card tile span-4" id="providers">
+          <h2>Providers</h2>
+          <ul>
+            <li><strong>LLM:</strong> OpenAI-compatible APIs (Groq/DeepSeek/etc) via <code>LLM_BASE_URL</code>.</li>
+            <li><strong>LLM (no key):</strong> <code>LLM_PROVIDER=mock</code> for local smoke runs.</li>
+            <li><strong>Search:</strong> Tavily / Exa (keys) or <code>SEARCH_PROVIDER=duckduckgo</code> (free).</li>
+            <li><strong>Storage:</strong> local filesystem (<code>OUTPUT_DIR</code>).</li>
+          </ul>
+          <p class="note">
+            Local Ollama adapter exists but is currently disabled by default in <code>container.py</code>.
+          </p>
+        </section>
+
+        <section class="card tile span-8" id="workflow">
+          <h2>How it works</h2>
+          <pre><code>User query
+  → research planning
+  → web search (Tavily / Exa / DuckDuckGo)
+  → evidence extraction + synthesis
+  → knowledge graph building
+  → report generation (Markdown + JSON)
+  → audit/verification loop
+  → final report + saved artifacts</code></pre>
+          <p class="note">
+            The graph runs asynchronously and streams progress; outputs are saved via the storage adapter.
+          </p>
+        </section>
+
+        <section class="card tile span-8" id="architecture">
+          <h2>Architecture (Mermaid)</h2>
+          <p class="muted">
+            High-level wiring: the CLI calls a LangGraph workflow, which uses ports/adapters for LLM,
+            search, and storage.
+          </p>
+          <div class="mermaid">
+flowchart LR
+  U[User query] --> CLI[main.py (CLI)]
+  CLI --> C[container.py (wiring)]
+  C --> G[graph/ (LangGraph workflow)]
+
+  C -->|LLMPort| LLM[adapters/* LLM\nOpenAI-compatible or Mock]
+  C -->|SearchPort| S[adapters/* Search\nTavily / Exa / DuckDuckGo]
+  C -->|StoragePort| ST[adapters/local_storage.py\noutput/ artifacts]
+
+  G --> N1[Plan]
+  N1 --> N2[Search]
+  N2 --> N3[Analyze]
+  N3 --> N4[Build knowledge graph]
+  N4 --> N5[Generate report]
+  N5 --> N6[Audit/verify]
+  N6 --> ST
+          </div>
+          <p class="note">
+            If the diagram doesn’t render, it’s still readable as text. (Renderer loads from a CDN.)
+          </p>
+        </section>
+
+        <section class="card tile span-4" id="links">
+          <h2>Links</h2>
+          <div class="actions" aria-label="Repository links">
+            <a class="btn" href="https://github.com/jayhemnani9910/revolu-idea#readme">README</a>
+            <a class="btn" href="https://github.com/jayhemnani9910/revolu-idea/issues">Issues</a>
+            <a class="btn" href="https://github.com/jayhemnani9910/revolu-idea/blob/master/LICENSE"
+              >License</a>
+          </div>
+          <p class="note">This landing page is hosted via GitHub Pages from the repo’s <code>/docs</code> folder.</p>
+        </section>
+
+        <div class="footer">
+          Built by <a href="https://github.com/jayhemnani9910">jayhemnani9910</a> • Source on
+          <a href="https://github.com/jayhemnani9910/revolu-idea">GitHub</a>
+        </div>
+      </div>
+    </main>
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>
