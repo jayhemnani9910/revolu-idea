@@ -26,6 +26,17 @@ DEFAULT_GROQ_CHAT_MODEL_POOL: list[str] = [
     "openai/gpt-oss-20b",
 ]
 
+# GitHub Models pool (via Azure inference endpoint)
+# Rate limits: Low tier = 15 RPM / 150 RPD, High tier = 10 RPM / 50 RPD
+DEFAULT_GITHUB_MODEL_POOL: list[str] = [
+    # Low tier (15 RPM, 150 RPD) - best for high-volume research
+    "gpt-4o-mini",
+    "gpt-4.1-mini",
+    # High tier (10 RPM, 50 RPD) - use sparingly
+    "gpt-4o",
+    "gpt-4.1",
+]
+
 
 class Container:
     """Dependency Injection Container."""
@@ -78,8 +89,14 @@ class Container:
                 )
 
             raw_models = (self.settings.llm_model or "").strip()
-            if raw_models.lower() in {"auto", "all"} and self.settings.llm_provider.strip().lower() == "groq":
-                models = list(DEFAULT_GROQ_CHAT_MODEL_POOL)
+            provider_lower = self.settings.llm_provider.strip().lower()
+            if raw_models.lower() in {"auto", "all"}:
+                if provider_lower == "groq":
+                    models = list(DEFAULT_GROQ_CHAT_MODEL_POOL)
+                elif provider_lower == "github":
+                    models = list(DEFAULT_GITHUB_MODEL_POOL)
+                else:
+                    models = [raw_models]  # fallback: use as-is
             else:
                 models = [m.strip() for m in raw_models.split(",") if m.strip()]
 

@@ -34,8 +34,8 @@ CAG (Causal Analysis Graph) Deep Research is a sophisticated research automation
 | Category | Technologies |
 |----------|-------------|
 | **Orchestration** | LangGraph, LangChain Core |
-| **Search** | Tavily API, Exa API |
-| **LLM** | Ollama (local), OpenAI (cloud) |
+| **Search** | Tavily API, Exa API, DuckDuckGo (free) |
+| **LLM** | GitHub Models (free), Groq, DeepSeek, Ollama (local) |
 | **Architecture** | Hexagonal/Ports & Adapters, DDD |
 | **Data** | Pydantic, httpx (async) |
 
@@ -97,14 +97,39 @@ revolu-idea/
 
 ## Configuration
 
+Copy `.env.example` to `.env` and configure:
+
 ```bash
 # .env file
-TAVILY_API_KEY=tvly-xxxxx
-EXA_API_KEY=exa-xxxxx
-LLM_MODEL=llama2          # or gpt-4
-MAX_RECURSION_DEPTH=3
-MAX_SEARCH_RESULTS=10
+
+# LLM Provider (pick one)
+# Option 1: GitHub Models (FREE with Copilot subscription)
+LLM_PROVIDER=github
+LLM_BASE_URL=https://models.inference.ai.azure.com
+LLM_MODEL=gpt-4o-mini  # or "auto" for model pool
+LLM_API_KEY=ghp_xxxxx  # GitHub token with models:read scope
+
+# Option 2: Groq (fast, free tier available)
+# LLM_PROVIDER=groq
+# LLM_BASE_URL=https://api.groq.com/openai/v1
+# LLM_MODEL=auto
+# LLM_API_KEY=gsk_xxxxx
+
+# Search (DuckDuckGo is free, no key needed)
+SEARCH_PROVIDER=duckduckgo
+# TAVILY_API_KEY=tvly-xxxxx  # for premium search
+
+# Research parameters
+MAX_RECURSION_DEPTH=5
+MAX_INVESTIGATIONS_PER_EDGE=2
 ```
+
+### GitHub Models Rate Limits
+
+| Model | RPM | RPD | Tokens |
+|-------|-----|-----|--------|
+| gpt-4o-mini | 15 | 150 | 8k in, 4k out |
+| gpt-4o | 10 | 50 | 8k in, 4k out |
 
 ## Output
 
