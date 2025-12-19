@@ -1,3 +1,5 @@
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open-2ea44f?style=for-the-badge)](https://jayhemnani9910.github.io/revolu-idea/)
+
 # CAG Deep Research System
 
 AI-powered research automation using LangGraph orchestration, multiple search engines, and iterative verification. Built with hexagonal architecture for enterprise-grade research workflows.
@@ -6,17 +8,13 @@ AI-powered research automation using LangGraph orchestration, multiple search en
 ![LangGraph](https://img.shields.io/badge/LangGraph-orchestration-purple)
 ![LangChain](https://img.shields.io/badge/LangChain-LLM-green)
 
-## Live link (GitHub Pages)
-
-Once enabled in the repo settings, the site will be available at:
+## Live Demo (GitHub Pages)
 
 - https://jayhemnani9910.github.io/revolu-idea/
 
 Enable it via **Settings → Pages**:
 
-- Source: **Deploy from a branch**
-- Branch: `master`
-- Folder: `/docs`
+- Source: **GitHub Actions**
 
 ## Overview
 
