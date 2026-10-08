@@ -3,9 +3,9 @@
 - **Purpose & entrypoint:** `main.py` runs the Causal-Adversarial Graph (CAG) workflow. It builds a LangGraph via `container.Container` + `ParallelCAGGraphBuilder` and streams events from `graph.astream` to stdout.
 - **Runtime commands:**
   - Install deps: `pip install -r requirements.txt` (Python 3.11+, langgraph/pydantic v2).
-  - Configure `.env` (loaded by `config/settings.py`): `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `TEMPERATURE`, `MAX_TOKENS`, `TAVILY_API_KEY`, `MAX_RECURSION_DEPTH`, `OUTPUT_DIR`.
-  - Run research: `python main.py "your topic" [--model <ollama_model>]`. Without `TAVILY_API_KEY`, `Container.searcher` falls back to `adapters.mock_adapters.MockSearchAdapter`.
-  - Outputs: `adapters.local_storage.LocalStorageAdapter` writes JSON + Markdown reports to `output/reports/`, graphs + mermaid to `output/graphs/`, checkpoints to `output/checkpoints/`.
+  - Configure `.env` (loaded by `config/settings.py`): `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`, `TEMPERATURE`, `MAX_TOKENS`, `SEARCH_PROVIDER`, `TAVILY_API_KEY`/`EXA_API_KEY`, `MAX_RECURSION_DEPTH`, `OUTPUT_DIR`.
+  - Run research: `python main.py "your topic" [--model <model>]`. Without a search key, `Container.searcher` raises unless `SEARCH_PROVIDER` is `duckduckgo` or `mock`.
+  - Outputs: `adapters.local_storage.LocalStorageAdapter` writes JSON + Markdown reports to `output/reports/`.
 - **Architecture (LangGraph nodes in `graph/cag_graph.py`):**
   - Planner (`agents/nodes/causal_planner.py`) builds the initial `CausalGraph` from the query using `LLMPort.generate_structured(PlannerOutput)`.
   - Auditor (`agents/nodes/auditor.py`) enforces safety: recursion depth (`max_depth`), loop detection (`action_hashes`), node visit ceilings, progress checks. Critical issues set `state["error"]` and route to `error_handler`.
@@ -18,7 +18,7 @@
   - Error handler tries to produce a partial report if a graph exists.
 - **State model (`agents/state.py`):** `ResearchState` is a `TypedDict` with reducers for LangGraph merges (`merge_evidence`, `merge_audit_feedback`, `increment_counter`). Use `increment_node_visit` to track `node_visit_counts`; recursion depth increases in `_run_judge`. Use `audit_action` + `compute_action_hash` to avoid loops when adding new actions.
 - **Domain models (`domain/`):** `CausalGraph`/`CausalEdge` track DAG, statuses, evidence lists, investigation counts, and provide `get_verification_summary()` + mermaid export. `ResearchReport`/`ResearchSection`/`ResearchFinding` in `domain/models.py` handle report structure and Markdown rendering (`to_markdown`).
-- **Ports & adapters:** Implement new providers against `ports.llm.LLMPort`, `ports.search.SearchPort`, `ports.storage.StoragePort`. `adapters/ollama_adapter.py` hits `POST /api/generate` with retries (tenacity) and JSON-mode helpers (`generate_structured`, `generate_list`). `adapters/tavily_adapter.py` wraps Tavily client with `search`, `search_news`, `search_academic` and credibility scoring.
+- **Ports & adapters:** Implement new providers against `ports.llm.LLMPort`, `ports.search.SearchPort`, `ports.storage.StoragePort`. `adapters/openai_compatible_adapter.py` calls any OpenAI-compatible chat API with retries (tenacity) and JSON helpers (`generate_structured`, `generate_list`); `fallback_llm_adapter.py` rotates through a model pool. `adapters/tavily_adapter.py` wraps Tavily client with `search`, `search_news`, `search_academic` and credibility scoring.
 - **Conventions when extending:**
   - Node `__call__` should be `async`, accept `ResearchState`, and return a dict of state updates including `audit_feedback` entries for traceability.
   - Maintain DAG invariants (`CausalGraph.is_dag()`); update edges via `graph.update_edge` and preserve `investigation_count`/`status` semantics (`EdgeSelector` skips resolved/over-investigated edges).

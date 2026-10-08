@@ -1,9 +1,4 @@
       (() => {
-        const url = new URL(window.location.href);
-        url.hash = "";
-        url.search = "";
-        url.pathname = url.pathname.replace(/index\.html$/, "");
-
         const sleep = (ms, signal) =>
           new Promise((resolve, reject) => {
             const timer = window.setTimeout(resolve, ms);
@@ -27,26 +22,6 @@
             el.onerror = () => reject(new Error(`Failed to load: ${src}`));
             document.head.appendChild(el);
           });
-
-        const siteLink = document.getElementById("site-link");
-        if (siteLink) {
-          siteLink.href = url.toString();
-          siteLink.textContent = url.toString();
-        }
-
-        const copyBtn = document.getElementById("copy-btn");
-        if (copyBtn) {
-          copyBtn.addEventListener("click", async () => {
-            try {
-              await navigator.clipboard.writeText(url.toString());
-              copyBtn.textContent = "Copied";
-              window.setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
-            } catch {
-              copyBtn.textContent = "Copy failed";
-              window.setTimeout(() => (copyBtn.textContent = "Copy"), 1400);
-            }
-          });
-        }
 
         const finePointer = window.matchMedia && window.matchMedia("(pointer: fine)").matches;
         if (finePointer) {
@@ -98,13 +73,13 @@
           demoStopBtn.disabled = true;
 
           const steps = [
-            { id: "planner", label: "Plan research", ms: 500 },
-            { id: "search", label: "Web search", ms: 850 },
-            { id: "analyze", label: "Analyze & extract evidence", ms: 900 },
-            { id: "graph", label: "Build knowledge graph", ms: 650 },
-            { id: "report", label: "Generate report", ms: 700 },
-            { id: "audit", label: "Audit/verify", ms: 750 },
-            { id: "save", label: "Save artifacts to output/", ms: 450 },
+            { id: "planner", label: "Plan causal DAG", ms: 600 },
+            { id: "auditor", label: "Safety checks", ms: 400 },
+            { id: "selector", label: "Pick next edge", ms: 450 },
+            { id: "investigate", label: "Adversary + supporter search", ms: 950 },
+            { id: "judge", label: "Judge evidence", ms: 700 },
+            { id: "writer", label: "Write report", ms: 700 },
+            { id: "save", label: "Save to output/reports/", ms: 450 },
           ];
 
           const renderSteps = (stateById) => {
@@ -182,8 +157,10 @@
               let md = "";
               try {
                 const res = await fetch("demo/demo_report.md", { cache: "no-store", signal });
+                if (!res.ok) throw new Error(String(res.status));
                 md = await res.text();
-              } catch {
+              } catch (e) {
+                if (e && e.name === "AbortError") throw e;
                 md = "# Demo report\n\n(Unable to load demo report file. Try refreshing.)\n";
               }
 
@@ -191,14 +168,15 @@
               demoReport.textContent = md;
               appendLog("------------------------------------------------------------");
               appendLog("RESEARCH COMPLETE (DEMO)");
-              appendLog("Saved to: output/reports/<demo>.md");
+              appendLog("Saved to: output/reports/<demo>.md + .json");
             } catch (e) {
               if (e && e.name === "AbortError") {
                 demoReport.textContent = "Demo stopped.";
               } else {
                 demoReport.textContent = "Demo failed to run. Try refreshing.";
               }
-              for (const k of Object.keys(state)) state[k] = "error";
+              // Only the step that was running failed; finished steps stay done.
+              for (const k of Object.keys(state)) if (state[k] === "running") state[k] = "error";
               renderSteps(state);
             } finally {
               demoRunBtn.disabled = false;

@@ -60,7 +60,8 @@ class ExaSearchAdapter(SearchPort):
                 snippet = (result.text or "")[:500]
 
                 # Exa provides a score
-                score = getattr(result, "score", 0.5)
+                score = getattr(result, "score", None)
+                score = 0.5 if score is None else score
                 domain_score = self.calculate_credibility(url, title)
                 final_score = (score + domain_score) / 2
 
@@ -108,7 +109,8 @@ class ExaSearchAdapter(SearchPort):
                 title = result.title or "Untitled"
                 snippet = (result.text or "")[:500]
 
-                score = getattr(result, "score", 0.5)
+                score = getattr(result, "score", None)
+                score = 0.5 if score is None else score
                 domain_score = self.calculate_credibility(url, title)
                 final_score = min((score + domain_score) / 2 + 0.1, 1.0)
 
@@ -151,7 +153,8 @@ class ExaSearchAdapter(SearchPort):
                 title = result.title or "Untitled"
                 snippet = (result.text or "")[:500]
 
-                score = getattr(result, "score", 0.5)
+                score = getattr(result, "score", None)
+                score = 0.5 if score is None else score
                 domain_score = self.calculate_credibility(url, title)
                 # Academic boost
                 final_score = min((score + domain_score) / 2 + 0.15, 1.0)
@@ -194,7 +197,8 @@ class ExaSearchAdapter(SearchPort):
                 title = result.title or "Untitled"
                 snippet = (result.text or "")[:500]
 
-                score = getattr(result, "score", 0.5)
+                score = getattr(result, "score", None)
+                score = 0.5 if score is None else score
                 domain_score = self.calculate_credibility(result_url, title)
                 final_score = (score + domain_score) / 2
 

@@ -13,9 +13,6 @@ class Settings(BaseSettings):
     # Use "auto" for the built-in Groq pool, or provide a comma-separated list.
     llm_model: str = "auto"
 
-    # === Ollama Configuration (kept for local fallback) ===
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen3:8b"
     temperature: float = 0.0
     max_tokens: int = 4096
 

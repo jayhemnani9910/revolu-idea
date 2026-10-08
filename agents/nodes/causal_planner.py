@@ -71,12 +71,6 @@ class CausalPlannerNode:
         """
         print(f"--- Causal Planner: Analyzing '{state['root_query'][:50]}...' ---")
 
-        # Check if we already have a graph (re-planning scenario)
-        existing_graph = state.get("causal_graph")
-        if existing_graph and existing_graph.edges:
-            # Re-planning: enhance existing graph based on findings
-            return await self._enhance_graph(state)
-
         # Initial planning: create new graph
         return await self._create_initial_graph(state)
 
@@ -119,8 +113,9 @@ Example format:
 
             # Add nodes
             for node_data in result.nodes:
+                raw_id = (node_data.get("id") or "").strip()
                 node = CausalNode(
-                    id=node_data.get("id", f"node_{len(graph.nodes)}"),
+                    id=raw_id or f"node_{len(graph.nodes)}",
                     label=node_data.get("label", "Unknown"),
                     description=node_data.get("description", ""),
                     node_type=node_data.get("node_type", "VARIABLE"),
@@ -178,90 +173,4 @@ Example format:
                 "causal_graph": CausalGraph(root_query=state["root_query"]),
                 "research_goal": state["root_query"],
                 "error": f"Planner failed: {str(e)}",
-            }
-
-    async def _enhance_graph(self, state: ResearchState) -> dict[str, Any]:
-        """Enhance existing graph based on investigation results."""
-        existing_graph = state["causal_graph"]
-        summary = existing_graph.get_verification_summary()
-
-        prompt = f"""
-Review the current research progress and enhance the causal graph if needed.
-
-ORIGINAL QUERY: {state['root_query']}
-CURRENT GOAL: {state.get('research_goal', state['root_query'])}
-
-CURRENT GRAPH STATUS:
-- Total edges: {summary['total_edges']}
-- Verified: {summary['verified']}
-- Falsified: {summary['falsified']}
-- Unclear: {summary['unclear']}
-- Completion: {summary['completion_rate']:.1f}%
-
-RECENT FINDINGS:
-{chr(10).join(state.get('audit_feedback', [])[-5:])}
-
-Should we:
-1. Add new nodes/edges based on discovered relationships?
-2. Refine existing hypotheses?
-3. The graph is sufficient - proceed to synthesis?
-
-If enhancement needed, provide new nodes and edges.
-If graph is sufficient, return empty lists.
-"""
-
-        try:
-            result = await self.llm.generate_structured(
-                prompt=prompt,
-                schema=PlannerOutput,
-                system_prompt=SYSTEM_PROMPT,
-            )
-
-            # Add any new nodes
-            for node_data in result.nodes:
-                if not existing_graph.get_node(node_data.get("id")):
-                    node = CausalNode(
-                        id=node_data.get("id"),
-                        label=node_data.get("label", "Unknown"),
-                        description=node_data.get("description", ""),
-                        node_type=node_data.get("node_type", "VARIABLE"),
-                    )
-                    existing_graph.add_node(node)
-
-            # Add any new edges
-            cycle_edges: list[str] = []
-            for edge_data in result.edges:
-                source = (edge_data.get("source_id") or "").strip()
-                target = (edge_data.get("target_id") or "").strip()
-                if not source or not target:
-                    continue
-                if not existing_graph.get_node(source) or not existing_graph.get_node(target):
-                    continue
-                if not existing_graph.get_edge(source, target):
-                    edge = CausalEdge(
-                        source_id=source,
-                        target_id=target,
-                        hypothesis=edge_data.get("hypothesis", "influences"),
-                        status="PROPOSED",
-                    )
-                    if existing_graph.add_edge(edge):
-                        if not existing_graph.is_dag():
-                            existing_graph.edges.pop()
-                            cycle_edges.append(edge.edge_label)
-
-            return {
-                "causal_graph": existing_graph,
-                "research_goal": result.research_goal or state.get("research_goal"),
-                "audit_feedback": [f"Planner (enhance): {result.reasoning[:200]}"]
-                + (
-                    [f"Planner (enhance): Removed {len(cycle_edges)} cyclic edge(s)"]
-                    if cycle_edges
-                    else []
-                ),
-            }
-
-        except Exception as e:
-            # On error, keep existing graph
-            return {
-                "audit_feedback": [f"Planner enhance failed: {str(e)}"],
             }

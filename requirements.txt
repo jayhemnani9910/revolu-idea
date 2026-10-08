@@ -12,7 +12,7 @@ exa-py>=1.0.0
 duckduckgo_search>=8.0.0
 wikipedia>=1.4.0
 
-# HTTP client for Ollama
+# HTTP client
 httpx>=0.27.0
 
 # Utilities

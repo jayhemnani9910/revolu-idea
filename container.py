@@ -83,9 +83,8 @@ class Container:
 
             if not self.settings.llm_api_key:
                 raise ValueError(
-                    "Missing LLM_API_KEY in revolu_idea/.env. "
-                    "Set LLM_API_KEY (and optionally LLM_BASE_URL / LLM_MODEL), "
-                    "or switch back to Ollama by re-enabling the commented code in container.py."
+                    "Missing LLM_API_KEY in .env. "
+                    "Set LLM_API_KEY (and optionally LLM_BASE_URL / LLM_MODEL)."
                 )
 
             raw_models = (self.settings.llm_model or "").strip()
@@ -96,7 +95,7 @@ class Container:
                 elif provider_lower == "github":
                     models = list(DEFAULT_GITHUB_MODEL_POOL)
                 else:
-                    models = [raw_models]  # fallback: use as-is
+                    raise ValueError("LLM_MODEL=auto only works with groq/github; set LLM_MODEL")
             else:
                 models = [m.strip() for m in raw_models.split(",") if m.strip()]
 
@@ -108,7 +107,7 @@ class Container:
             ]
             models = list(dict.fromkeys(models))  # de-dupe, preserve order
             if not models:
-                raise ValueError("LLM_MODEL is empty. Set LLM_MODEL in revolu_idea/.env.")
+                raise ValueError("LLM_MODEL is empty. Set LLM_MODEL in .env.")
 
             start_index = self._round_robin_start_index(len(models))
             if len(models) == 1:
@@ -136,16 +135,6 @@ class Container:
                 if len(adapters) == 1
                 else FallbackLLMAdapter(adapters, start_index=start_index)
             )
-
-            # --- Ollama (local) ---
-            # from adapters.ollama_adapter import OllamaAdapter
-            # print(f"Using Ollama with model: {self.settings.ollama_model}")
-            # self._llm = OllamaAdapter(
-            #     model_name=self.settings.ollama_model,
-            #     base_url=self.settings.ollama_base_url,
-            #     temperature=self.settings.temperature,
-            #     max_tokens=self.settings.max_tokens,
-            # )
         return self._llm
 
     @property
@@ -180,9 +169,10 @@ class Container:
                     print("Tavily key found, using Tavily search")
                     self._searcher = TavilySearchAdapter(api_key=self.settings.tavily_api_key)
                 else:
-                    from adapters.mock_adapters import MockSearchAdapter
-                    print("No search API key found, using mock search")
-                    self._searcher = MockSearchAdapter()
+                    raise ValueError(
+                        "No search key found. Set TAVILY_API_KEY/EXA_API_KEY, "
+                        "or SEARCH_PROVIDER=duckduckgo or mock"
+                    )
         return self._searcher
 
     @property

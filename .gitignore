@@ -58,3 +58,7 @@ Thumbs.db
 *.pth
 *.onnx
 *.bin
+
+# /audit outputs
+graphify-out/
+.audit/

@@ -77,7 +77,6 @@
         grid-template-columns: repeat(12, 1fr);
         gap: 16px;
         grid-auto-flow: dense;
-        align-items: start;
       }
 
       .tile {
@@ -128,6 +127,10 @@
         opacity: 1;
       }
 
+      .span-12 {
+        grid-column: span 12;
+      }
+
       .span-8 {
         grid-column: span 8;
       }
@@ -136,17 +139,10 @@
         grid-column: span 4;
       }
 
-      .row-2 {
-        grid-row: span 2;
-      }
-
       @media (max-width: 1050px) {
         .span-8,
         .span-4 {
           grid-column: span 12;
-        }
-        .row-2 {
-          grid-row: auto;
         }
       }
 
@@ -297,6 +293,8 @@
         border: 1px solid var(--border);
         background: rgba(0, 0, 0, 0.25);
         overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
       }
 
       .meta {
@@ -330,51 +328,9 @@
         color: rgba(255, 255, 255, 0.78);
       }
 
-      .urlBox {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 14px;
-        border: 1px solid var(--border);
-        background: rgba(0, 0, 0, 0.22);
-        margin-top: 10px;
-        transition: border-color 160ms ease, background-color 160ms ease;
-      }
-
-      .urlBox:hover {
-        border-color: rgba(255, 255, 255, 0.18);
-        background: rgba(0, 0, 0, 0.26);
-      }
-
-      .urlBox:focus-within {
-        border-color: rgba(51, 195, 255, 0.55);
-      }
-
-      .urlBox a {
-        font-family: var(--mono);
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.88);
-        text-decoration: none;
-        word-break: break-all;
-      }
-
       .btn.small {
         padding: 8px 10px;
         font-size: 13px;
-      }
-
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 7px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(55, 214, 122, 0.35);
-        background: rgba(55, 214, 122, 0.08);
-        color: rgba(255, 255, 255, 0.86);
-        font-size: 12px;
       }
 
       .fieldRow {
@@ -524,8 +480,7 @@
         .tile,
         .tile::before,
         .btn,
-        .pill,
-        .urlBox {
+        .pill {
           transition: none !important;
         }
 

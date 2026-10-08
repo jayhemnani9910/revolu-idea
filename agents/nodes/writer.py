@@ -214,7 +214,7 @@ Instructions:
             target_label = target.label if target else edge.target_id
 
             entry = (
-                f"- {edge.source_id} -> {edge.target_id}: {edge.status} (Conf: {edge.confidence:.2f})"
+                f"- {source_label} -> {target_label}: {edge.status} (Conf: {edge.confidence:.2f})"
             )
             
             # Ultra-minimal context for free tier rate limits
@@ -267,7 +267,8 @@ Instructions:
             # Try to match with graph edges
             verdict = "UNVERIFIED"
             for edge in graph.edges:
-                if edge.source_id.lower() in point.lower() or edge.target_id.lower() in point.lower():
+                nodes = (graph.get_node(edge.source_id), graph.get_node(edge.target_id))
+                if any(node and node.label.lower() in point.lower() for node in nodes):
                     verdict = edge.status
                     # Map generic graph status to report verdict
                     if verdict in ("UNCLEAR", "PROPOSED", "INVESTIGATING"):
