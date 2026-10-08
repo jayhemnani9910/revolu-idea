@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CAG Deep Research System - Ollama + Tavily"""
+"""CAG Deep Research System - CLI entrypoint"""
 import asyncio
 import argparse
 import warnings

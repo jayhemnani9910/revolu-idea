@@ -62,7 +62,7 @@ class CAGGraphBuilder:
         self.supporter = SupporterResearcherNode(llm, searcher)
         self.judge = DialecticalJudgeNode(llm)
         self.writer = WriterNode(llm)
-        self.auditor = AuditorNode(max_depth)
+        self.auditor = AuditorNode(max_depth, max_node_visits=max_depth + 2)
 
     def build(self) -> StateGraph:
         """
@@ -211,17 +211,20 @@ class CAGGraphBuilder:
         error = state.get("error", "Unknown error")
         print(f"--- Error Handler: {error} ---")
 
+        feedback = [f"FATAL ERROR: {error}"]
+
         # Try to produce partial report if possible
         if state.get("causal_graph"):
             try:
                 result = await self.writer(state)
                 result["audit_feedback"] = [f"Error occurred, partial report generated: {error}"]
                 return result
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"--- Partial report failed: {e} ---")
+                feedback.append(f"Partial report failed: {e}")
 
         return {
-            "audit_feedback": [f"FATAL ERROR: {error}"],
+            "audit_feedback": feedback,
         }
 
 class ParallelCAGGraphBuilder(CAGGraphBuilder):

@@ -239,6 +239,12 @@ Provide your reasoning and confidence level.
         edge.judge_reasoning = "Insufficient evidence for definitive judgment"
         edge.investigation_count += 1
 
+        # Keep whatever evidence was found
+        for ev in state.get("supporting_evidence", []):
+            edge.add_evidence(ev)
+        for ev in state.get("contradicting_evidence", []):
+            edge.add_evidence(ev)
+
         graph = state["causal_graph"]
         graph.update_edge(edge)
 

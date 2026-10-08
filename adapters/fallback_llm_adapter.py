@@ -205,7 +205,7 @@ class FallbackLLMAdapter(LLMPort):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> str:
         return await self._with_fallback(
             lambda a: a.generate(prompt=prompt, system_prompt=system_prompt, temperature=temperature)
@@ -216,7 +216,7 @@ class FallbackLLMAdapter(LLMPort):
         prompt: str,
         schema: Type[T],
         system_prompt: str | None = None,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> T:
         return await self._with_fallback(
             lambda a: a.generate_structured(

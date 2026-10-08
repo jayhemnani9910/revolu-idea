@@ -132,24 +132,18 @@ class OpenAICompatibleAdapter(LLMPort):
         if start == -1:
             raise ValueError("No JSON object found in model response")
 
-        depth = 0
-        for idx in range(start, len(text)):
-            ch = text[idx]
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    return text[start : idx + 1]
-
-        raise ValueError("Unbalanced JSON object in model response")
+        try:
+            _, end = json.JSONDecoder().raw_decode(text[start:])
+        except json.JSONDecodeError:
+            raise ValueError("Unbalanced JSON object in model response")
+        return text[start : start + end]
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=20))
     async def generate(
         self,
         prompt: str,
         system_prompt: str | None = None,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> str:
         try:
             messages: list[dict[str, str]] = []
@@ -168,7 +162,7 @@ class OpenAICompatibleAdapter(LLMPort):
         prompt: str,
         schema: Type[T],
         system_prompt: str | None = None,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> T:
         try:
             schema_json = schema.model_json_schema()

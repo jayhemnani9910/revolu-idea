@@ -6,12 +6,12 @@
     <title>Revolu Idea • CAG Deep Research</title>
     <meta
       name="description"
-      content="AI-powered research automation using LangGraph orchestration, multi-source web search, and iterative verification."
+      content="A LangGraph research CLI that builds a causal graph, debates each link with adversary and supporter agents, and writes a verified report."
     />
     <meta property="og:title" content="Revolu Idea • CAG Deep Research" />
     <meta
       property="og:description"
-      content="A multi-agent deep research workflow that searches, verifies, and generates structured reports."
+      content="A LangGraph research CLI that builds a causal graph, debates each link with adversary and supporter agents, and writes a verified report."
     />
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#0b1020" />
@@ -20,13 +20,13 @@
   <body>
     <main class="container">
       <div class="bento">
-        <header class="hero card span-8 row-2" aria-label="Revolu Idea">
+        <header class="hero card span-12" aria-label="Revolu Idea">
           <div class="kicker"><span class="dot"></span> Revolu Idea • GitHub Pages</div>
           <h1>CAG Deep Research</h1>
           <p class="subtitle">
-            A multi-agent research workflow that searches the web, synthesizes findings, verifies
-            claims, and produces structured reports — built with LangGraph + a clean ports/adapters
-            architecture.
+            A research CLI on LangGraph. It turns a question into a causal graph, has an adversary and
+            a supporter agent search for evidence on each link, judges them, and writes a report.
+            Ports/adapters layout. Experimental.
           </p>
 
           <div class="actions" aria-label="Primary links">
@@ -51,35 +51,7 @@
           </p>
         </header>
 
-        <section class="card tile span-4" id="live">
-          <h2>Live link (share this)</h2>
-          <div class="badge">Live on GitHub Pages</div>
-          <div class="urlBox">
-            <a id="site-link" href="https://jayhemnani9910.github.io/revolu-idea/"
-              >https://jayhemnani9910.github.io/revolu-idea/</a>
-            <button class="btn small" id="copy-btn" type="button">Copy</button>
-          </div>
-          <p class="note">
-            If you just enabled Pages and see a 404, wait ~1–2 minutes and refresh.
-          </p>
-        </section>
-
-        <section class="card tile span-4 row-2" id="quickstart">
-          <h2>Quick start</h2>
-          <p class="muted">Clone, install, configure <code>.env</code>, run:</p>
-          <pre><code>git clone https://github.com/jayhemnani9910/revolu-idea.git
-cd revolu-idea
-python -m venv .venv &amp;&amp; source .venv/bin/activate
-pip install -r requirements.txt
-
-# copy template, then edit keys
-cp .env.example .env
-
-python main.py "What are the latest developments in quantum computing?"</code></pre>
-          <p class="note">No-key smoke run: <code>LLM_PROVIDER=mock SEARCH_PROVIDER=mock</code></p>
-        </section>
-
-        <section class="card tile span-8 row-2" id="demo">
+        <section class="card tile span-8" id="demo">
           <h2>Working demo (simulated)</h2>
           <p class="muted">
             This demo runs entirely in your browser using prebuilt sample artifacts (no API calls).
@@ -117,7 +89,7 @@ python main.py "What are the latest developments in quantum computing?"</code></
             <div class="actions" aria-label="Demo artifacts">
               <a class="btn small" href="demo/demo_report.md">Open demo report (MD)</a>
               <a class="btn small" href="demo/demo_report.json">Open demo report (JSON)</a>
-              <a class="btn small" href="demo/demo_graph.mmd">Open demo graph (Mermaid)</a>
+              <a class="btn small" href="demo/demo_graph.mmd">Sample causal DAG (Mermaid)</a>
             </div>
             <pre class="outputBox"><code id="demo-report">The preview will appear here.</code></pre>
           </details>
@@ -127,14 +99,59 @@ python main.py "What are the latest developments in quantum computing?"</code></
           </p>
         </section>
 
-        <section class="card tile span-4" id="features">
-          <h2>Key features</h2>
+        <section class="card tile span-4" id="quickstart">
+          <h2>Quick start</h2>
+          <p class="muted">Clone, install, configure <code>.env</code>, run:</p>
+          <pre><code>git clone https://github.com/jayhemnani9910/revolu-idea.git
+cd revolu-idea
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# copy template, then set LLM_API_KEY
+cp .env.example .env
+
+python main.py "What are the latest developments in quantum computing?"
+
+# no-key smoke run
+LLM_PROVIDER=mock SEARCH_PROVIDER=mock python main.py "test topic"</code></pre>
+        </section>
+
+        <section class="card tile span-8" id="workflow">
+          <h2>How it works</h2>
+          <p class="muted">
+            The planner turns the query into a causal DAG. The auditor runs safety checks (loops,
+            depth), the selector picks the next edge, and the adversary and supporter search for
+            evidence on it in parallel. The judge gives a verdict and confidence, then control goes
+            back to the auditor. When no edges are left or max depth is hit, the writer saves
+            <code>output/reports/*.md</code> + <code>.json</code>.
+          </p>
+          <div class="mermaid">
+flowchart LR
+  Q["User query"] --> P["Planner<br/>causal DAG"] --> A["Auditor"] --> S["Selector"] --> I["Adversary + Supporter<br/>parallel search"] --> J["Judge"] --> A
+  S -->|"no edges left"| W["Writer"]
+  A -->|"max depth"| W
+  W --> O["output/reports/"]
+          </div>
+          <p class="note">
+            If the diagram doesn’t render, it’s still readable as text. (Renderer loads from a CDN.)
+          </p>
+        </section>
+
+        <section class="card tile span-4" id="providers">
+          <h2>Providers</h2>
           <ul>
-            <li>LangGraph multi-agent orchestration (planner → search → analyze → report → audit).</li>
-            <li>Multi-provider web search (Tavily, Exa, DuckDuckGo + Wikipedia fallback).</li>
-            <li>Adversarial-style verification loop to reduce hallucinations.</li>
-            <li>Knowledge graph building (entities + relationships) as research proceeds.</li>
-            <li>Ports/adapters design so providers can be swapped without touching the core flow.</li>
+            <li><strong>LLM:</strong> OpenAI-compatible APIs (Groq/DeepSeek/etc) via <code>LLM_BASE_URL</code>.</li>
+            <li><strong>LLM (no key):</strong> <code>LLM_PROVIDER=mock</code> for local smoke runs.</li>
+            <li><strong>Search:</strong> Tavily / Exa (keys) or <code>SEARCH_PROVIDER=duckduckgo</code> (free).</li>
+            <li><strong>Storage:</strong> local filesystem (<code>OUTPUT_DIR</code>).</li>
+          </ul>
+          <p class="muted">Settings load from <code>.env</code> (gitignored). Core env vars:</p>
+          <ul>
+            <li><code>LLM_PROVIDER</code>, <code>LLM_BASE_URL</code>, <code>LLM_MODEL</code>, <code>LLM_API_KEY</code></li>
+            <li><code>SEARCH_PROVIDER</code> (+ <code>TAVILY_API_KEY</code> or <code>EXA_API_KEY</code> if used)</li>
+            <li><code>MAX_RECURSION_DEPTH</code>, <code>MAX_INVESTIGATIONS_PER_EDGE</code></li>
+            <li><code>OUTPUT_DIR</code></li>
           </ul>
         </section>
 
@@ -154,96 +171,23 @@ python main.py "What are the latest developments in quantum computing?"</code></
           </p>
         </section>
 
-        <section class="card tile span-4" id="config">
-          <h2>Configuration</h2>
-          <p class="muted">Settings load from <code>.env</code> (gitignored). Start with:</p>
-          <pre><code>cp .env.example .env</code></pre>
-          <p class="muted">Core env vars:</p>
-          <ul>
-            <li><code>LLM_PROVIDER</code>, <code>LLM_BASE_URL</code>, <code>LLM_MODEL</code>, <code>LLM_API_KEY</code></li>
-            <li><code>SEARCH_PROVIDER</code> (+ <code>TAVILY_API_KEY</code> or <code>EXA_API_KEY</code> if used)</li>
-            <li><code>MAX_RECURSION_DEPTH</code>, <code>MAX_INVESTIGATIONS_PER_EDGE</code></li>
-            <li><code>OUTPUT_DIR</code></li>
-          </ul>
-        </section>
-
         <section class="card tile span-4" id="outputs">
           <h2>Outputs</h2>
           <p class="muted">Artifacts are written under <code>output/</code>:</p>
           <ul>
             <li><code>output/reports/*.md</code> + <code>*.json</code> — final report</li>
-            <li><code>output/graphs/*.mmd</code> + <code>*.json</code> — causal graph + Mermaid</li>
-            <li><code>output/checkpoints/*.json</code> — saved state for runs</li>
           </ul>
           <p class="note">The report includes citations, findings, and verification status.</p>
         </section>
 
-        <section class="card tile span-4" id="providers">
-          <h2>Providers</h2>
+        <section class="card tile span-4" id="features">
+          <h2>Key features</h2>
           <ul>
-            <li><strong>LLM:</strong> OpenAI-compatible APIs (Groq/DeepSeek/etc) via <code>LLM_BASE_URL</code>.</li>
-            <li><strong>LLM (no key):</strong> <code>LLM_PROVIDER=mock</code> for local smoke runs.</li>
-            <li><strong>Search:</strong> Tavily / Exa (keys) or <code>SEARCH_PROVIDER=duckduckgo</code> (free).</li>
-            <li><strong>Storage:</strong> local filesystem (<code>OUTPUT_DIR</code>).</li>
+            <li>LangGraph workflow: planner → selector → adversary + supporter → judge → writer.</li>
+            <li>One search provider per run: Tavily, Exa, or DuckDuckGo (Wikipedia fallback).</li>
+            <li>Causal graph: variables and edges, each edge gets a verdict and confidence.</li>
+            <li>Ports/adapters design so providers can be swapped without touching the core flow.</li>
           </ul>
-          <p class="note">
-            Local Ollama adapter exists but is currently disabled by default in <code>container.py</code>.
-          </p>
-        </section>
-
-        <section class="card tile span-8" id="workflow">
-          <h2>How it works</h2>
-          <pre><code>User query
-  → research planning
-  → web search (Tavily / Exa / DuckDuckGo)
-  → evidence extraction + synthesis
-  → knowledge graph building
-  → report generation (Markdown + JSON)
-  → audit/verification loop
-  → final report + saved artifacts</code></pre>
-          <p class="note">
-            The graph runs asynchronously and streams progress; outputs are saved via the storage adapter.
-          </p>
-        </section>
-
-        <section class="card tile span-8" id="architecture">
-          <h2>Architecture (Mermaid)</h2>
-          <p class="muted">
-            High-level wiring: the CLI calls a LangGraph workflow, which uses ports/adapters for LLM,
-            search, and storage.
-          </p>
-          <div class="mermaid">
-flowchart LR
-  U[User query] --> CLI[main.py (CLI)]
-  CLI --> C[container.py (wiring)]
-  C --> G[graph/ (LangGraph workflow)]
-
-  C -->|LLMPort| LLM[adapters/* LLM\nOpenAI-compatible or Mock]
-  C -->|SearchPort| S[adapters/* Search\nTavily / Exa / DuckDuckGo]
-  C -->|StoragePort| ST[adapters/local_storage.py\noutput/ artifacts]
-
-  G --> N1[Plan]
-  N1 --> N2[Search]
-  N2 --> N3[Analyze]
-  N3 --> N4[Build knowledge graph]
-  N4 --> N5[Generate report]
-  N5 --> N6[Audit/verify]
-  N6 --> ST
-          </div>
-          <p class="note">
-            If the diagram doesn’t render, it’s still readable as text. (Renderer loads from a CDN.)
-          </p>
-        </section>
-
-        <section class="card tile span-4" id="links">
-          <h2>Links</h2>
-          <div class="actions" aria-label="Repository links">
-            <a class="btn" href="https://github.com/jayhemnani9910/revolu-idea#readme">README</a>
-            <a class="btn" href="https://github.com/jayhemnani9910/revolu-idea/issues">Issues</a>
-            <a class="btn" href="https://github.com/jayhemnani9910/revolu-idea/blob/master/LICENSE"
-              >License</a>
-          </div>
-          <p class="note">This landing page is hosted via GitHub Pages from the repo’s <code>/docs</code> folder.</p>
         </section>
 
         <div class="footer">

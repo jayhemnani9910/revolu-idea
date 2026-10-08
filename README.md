@@ -2,7 +2,7 @@
 
 # CAG Deep Research System
 
-AI-powered research automation using LangGraph orchestration, multiple search engines, and iterative verification. Built with hexagonal architecture for enterprise-grade research workflows.
+A research CLI on LangGraph. It turns a question into a causal graph, has an adversary and a supporter agent search for evidence on each link, judges them, and writes a report. Ports/adapters layout. Experimental.
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![LangGraph](https://img.shields.io/badge/LangGraph-orchestration-purple)
@@ -18,41 +18,43 @@ Enable it via **Settings → Pages**:
 
 ## Overview
 
-CAG (Causal Analysis Graph) Deep Research is a sophisticated research automation platform that combines multiple AI agents, search engines, and verification loops to produce comprehensive, fact-checked research reports. Unlike simple Q&A systems, CAG performs iterative deep research with automatic quality assessment and knowledge graph construction.
+CAG (Causal Analysis Graph) Deep Research breaks a question into variables and cause-effect links. For each link, one agent looks for evidence that it holds and another looks for evidence that it does not. A judge weighs both and marks the link verified, falsified or unclear, and a writer turns the result into a report.
 
 ## Key Features
 
-- **Multi-Agent Architecture**: Specialized agents for search, analysis, verification, and reporting
-- **Iterative Deepening**: Automatically identifies knowledge gaps and performs follow-up research
-- **Dual Search Integration**: Combines Tavily and Exa APIs for comprehensive coverage
-- **Quality Assurance**: Built-in audit feedback and verification loops
-- **Knowledge Graph**: Constructs domain entities and relationships during research
-- **Hexagonal Architecture**: Clean separation between domain logic, ports, and adapters
+- **Causal planner**: builds a DAG of variables and edges from the question
+- **Adversary + supporter**: search for evidence on each edge in parallel
+- **Judge**: sets VERIFIED / FALSIFIED / UNCLEAR with a confidence
+- **Auditor**: enforces depth and loop limits
+- **One search provider per run**: Tavily, Exa, or DuckDuckGo (falls back to Wikipedia)
+- **Mock LLM + search**: run the whole graph with no keys
 
 ## Technology Stack
 
 | Category | Technologies |
 |----------|-------------|
 | **Orchestration** | LangGraph, LangChain Core |
-| **Search** | Tavily API, Exa API, DuckDuckGo (free) |
-| **LLM** | GitHub Models (free), Groq, DeepSeek, Ollama (local) |
-| **Architecture** | Hexagonal/Ports & Adapters, DDD |
+| **Search** | Tavily, Exa, or DuckDuckGo (one per run) |
+| **LLM** | OpenAI-compatible APIs: GitHub Models, Groq, DeepSeek; mock |
+| **Architecture** | Ports & adapters |
 | **Data** | Pydantic, httpx (async) |
 
 ## Quick Start
 
 ```bash
-# Set API keys
-export TAVILY_API_KEY="your_key"
-export EXA_API_KEY="your_key"
-
 # Clone and install
 git clone https://github.com/jayhemnani9910/revolu-idea.git
 cd revolu-idea
 pip install -r requirements.txt
 
+# Configure: copy the template, then set LLM_API_KEY (and a search key, or SEARCH_PROVIDER=duckduckgo)
+cp .env.example .env
+
 # Run research
 python main.py "What are the latest developments in quantum computing?"
+
+# No keys? Run the whole graph on mock LLM + mock search
+LLM_PROVIDER=mock SEARCH_PROVIDER=mock python main.py "test topic"
 ```
 
 ## Agent Workflow
@@ -60,38 +62,34 @@ python main.py "What are the latest developments in quantum computing?"
 ```
 User Query
     ↓
-[Search Planner] → Plans research strategy
+[Planner] → causal DAG of variables and edges
     ↓
-[Web Searcher] → Queries Tavily + Exa
+[Auditor] → depth and loop limits
     ↓
-[Content Analyzer] → Extracts key information
+[Selector] → picks the next unverified edge
     ↓
-[Knowledge Builder] → Constructs entity graph
+[Adversary + Supporter] → search for and against the edge, in parallel
     ↓
-[Report Generator] → Creates structured report
-    ↓
-[Audit Validator] → Verifies facts, checks gaps
-    ↓
-Final Report (Markdown)
+[Judge] → VERIFIED / FALSIFIED / UNCLEAR, then back to the Auditor
+    ↓  (no edges left, or depth reached)
+[Writer] → output/reports/*.md + .json
 ```
 
 ## Architecture
 
 ```
 revolu-idea/
-├── domain/           # Core business logic
-│   └── entities.py   # Research entities
-├── ports/            # Interfaces
-│   ├── llm_port.py
-│   └── search_port.py
-├── adapters/         # External integrations
-│   ├── ollama_adapter.py
-│   ├── tavily_adapter.py
-│   └── exa_adapter.py
-├── agents/           # LangGraph nodes
-│   └── nodes/
-├── graph/            # Workflow definition
-├── config/           # Settings
+├── domain/           # models.py, causal_models.py, exceptions.py
+├── ports/            # llm.py, search.py, storage.py
+├── adapters/         # openai_compatible, fallback_llm, tavily, exa,
+│                     # duckduckgo, mock adapters + local_storage.py
+├── agents/
+│   ├── state.py
+│   └── nodes/        # causal_planner, edge_selector, adversary,
+│                     # supporter, judge, auditor, writer
+├── graph/            # cag_graph.py (workflow definition)
+├── config/           # settings.py
+├── container.py      # provider wiring
 └── main.py           # CLI entrypoint
 ```
 
@@ -120,7 +118,7 @@ SEARCH_PROVIDER=duckduckgo
 # TAVILY_API_KEY=tvly-xxxxx  # for premium search
 
 # Research parameters
-MAX_RECURSION_DEPTH=5
+MAX_RECURSION_DEPTH=5  # edge investigations before the writer runs (not graph depth)
 MAX_INVESTIGATIONS_PER_EDGE=2
 ```
 
@@ -133,13 +131,11 @@ MAX_INVESTIGATIONS_PER_EDGE=2
 
 ## Output
 
-Reports saved to `output/reports/` include:
-- Executive summary
-- Key findings with confidence scores
-- Source citations
-- Knowledge graph entities
-- Verification status
-- Follow-up questions
+Reports are saved to `output/reports/` as `.md` and `.json`:
+- Summary
+- Sections with inline citations and verdict-tagged findings
+- Detailed findings per causal edge
+- Verification status, methodology and limitations
 
 ## Use Cases
 
