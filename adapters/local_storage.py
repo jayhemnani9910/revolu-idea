@@ -1,8 +1,10 @@
 """Local file storage adapter implementation."""
+import asyncio
 import json
 from datetime import datetime
 from uuid import UUID
 from pathlib import Path
+from threading import Lock
 
 from ports.storage import StoragePort
 from domain.models import ResearchReport
@@ -32,6 +34,7 @@ class LocalStorageAdapter(StoragePort):
             graphs_dir: Subdirectory for graphs
             checkpoints_dir: Subdirectory for checkpoints
         """
+        self._io_lock = Lock()
         self.base_path = Path(base_path)
         self.reports_path = self.base_path / reports_dir
         self.graphs_path = self.base_path / graphs_dir
@@ -45,8 +48,19 @@ class LocalStorageAdapter(StoragePort):
     def storage_type(self) -> str:
         return "local"
 
+    async def _run_io(self, operation, *args):
+        def run():
+            # Keep overlapping calls on this adapter from reading a partial write.
+            with self._io_lock:
+                return operation(*args)
+
+        return await asyncio.to_thread(run)
+
     async def save_report(self, report: ResearchReport) -> str:
         """Persist the research report as JSON."""
+        return await self._run_io(self._save_report, report)
+
+    def _save_report(self, report: ResearchReport) -> str:
         try:
             filename = f"{report.id}.json"
             filepath = self.reports_path / filename
@@ -67,6 +81,9 @@ class LocalStorageAdapter(StoragePort):
 
     async def load_report(self, report_id: UUID) -> ResearchReport | None:
         """Retrieve a report by ID."""
+        return await self._run_io(self._load_report, report_id)
+
+    def _load_report(self, report_id: UUID) -> ResearchReport | None:
         try:
             filename = f"{report_id}.json"
             filepath = self.reports_path / filename
@@ -83,6 +100,9 @@ class LocalStorageAdapter(StoragePort):
 
     async def save_graph(self, graph: CausalGraph) -> str:
         """Persist a causal graph as JSON."""
+        return await self._run_io(self._save_graph, graph)
+
+    def _save_graph(self, graph: CausalGraph) -> str:
         try:
             filename = f"{graph.id}.json"
             filepath = self.graphs_path / filename
@@ -103,6 +123,9 @@ class LocalStorageAdapter(StoragePort):
 
     async def load_graph(self, graph_id: UUID) -> CausalGraph | None:
         """Retrieve a causal graph by ID."""
+        return await self._run_io(self._load_graph, graph_id)
+
+    def _load_graph(self, graph_id: UUID) -> CausalGraph | None:
         try:
             filename = f"{graph_id}.json"
             filepath = self.graphs_path / filename
@@ -119,6 +142,9 @@ class LocalStorageAdapter(StoragePort):
 
     async def list_reports(self, limit: int = 10) -> list[dict]:
         """List recent reports with metadata."""
+        return await self._run_io(self._list_reports, limit)
+
+    def _list_reports(self, limit: int) -> list[dict]:
         try:
             reports = []
             json_files = list(self.reports_path.glob("*.json"))
@@ -144,6 +170,9 @@ class LocalStorageAdapter(StoragePort):
 
     async def delete_report(self, report_id: UUID) -> bool:
         """Delete a report by ID."""
+        return await self._run_io(self._delete_report, report_id)
+
+    def _delete_report(self, report_id: UUID) -> bool:
         try:
             json_filepath = self.reports_path / f"{report_id}.json"
             md_filepath = self.reports_path / f"{report_id}.md"
@@ -162,6 +191,9 @@ class LocalStorageAdapter(StoragePort):
 
     async def save_checkpoint(self, session_id: str, state: dict) -> str:
         """Save a research session checkpoint."""
+        return await self._run_io(self._save_checkpoint, session_id, state)
+
+    def _save_checkpoint(self, session_id: str, state: dict) -> str:
         try:
             filename = f"{session_id}.json"
             filepath = self.checkpoints_path / filename
@@ -179,6 +211,9 @@ class LocalStorageAdapter(StoragePort):
 
     async def load_checkpoint(self, session_id: str) -> dict | None:
         """Load a research session checkpoint."""
+        return await self._run_io(self._load_checkpoint, session_id)
+
+    def _load_checkpoint(self, session_id: str) -> dict | None:
         try:
             filename = f"{session_id}.json"
             filepath = self.checkpoints_path / filename
@@ -197,6 +232,9 @@ class LocalStorageAdapter(StoragePort):
         Remove checkpoints older than max_age_hours.
         Returns number of files deleted.
         """
+        return await self._run_io(self._cleanup_old_checkpoints, max_age_hours)
+
+    def _cleanup_old_checkpoints(self, max_age_hours: int) -> int:
         try:
             deleted_count = 0
             cutoff = datetime.now().timestamp() - (max_age_hours * 3600)
